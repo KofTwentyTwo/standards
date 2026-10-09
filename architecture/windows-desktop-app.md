@@ -106,21 +106,44 @@ message or a log entry.
 
 ```mermaid
 flowchart LR
-    tag["tag v1.2.3"] --> gates["re-run gates<br/>build · tests · coverage · scans"]
-    gates --> publish["publish self-contained<br/>app + CLI"]
-    publish --> sign["Authenticode sign<br/>(Azure Trusted Signing, OIDC)"]
-    sign --> pack["vpk pack<br/>Setup · portable · full/delta"]
-    pack --> sbom["SBOM (CycloneDX)<br/>SHA256SUMS"]
-    sbom --> attest["attest provenance + SBOM"]
-    attest --> draft["draft release<br/>upload all assets + notes"]
+    tag["tag v1.2.3<br/>(v1.2.3-beta.1 → dev)"] --> gates["build job<br/>locked restore · build · tests · coverage"]
+    gates --> publish["publish self-contained<br/>app + optional CLI"]
+    publish --> sign["package job<br/>Authenticode sign (Azure Trusted Signing, OIDC)<br/>when sign: true (EX-0002)"]
+    sign --> pack["vpk pack<br/>Setup · portable · full/delta · feed"]
+    pack --> sbom["sbom job<br/>CycloneDX of the published output"]
+    sbom --> attest["attest job<br/>SHA256SUMS · provenance"]
+    attest --> draft["release job<br/>draft release, all assets + notes"]
     draft --> pub["publish (immutable)"]
-    pub --> winget["winget update (stable)"]
+    pub --> winget["caller winget job<br/>(stable, optional)"]
 ```
 
-The pipeline is the shared reusable release workflow in `KofTwentyTwo/standards`
-(SLSA Build L3, [`K22-CI-30`](../standards/ci-cd.md#release-pipelines)). Signing happens
-**before** `vpk pack` so the binaries inside the installer and the update packages are
-signed, and Velopack signs its own `Setup.exe` with the same identity.
+The pipeline is the shared reusable workflow
+[`release-velopack.yml`](../.github/workflows/release-velopack.yml) in
+`KofTwentyTwo/standards`, called from the app's tag workflow
+([template](../templates/workflows/release-velopack.yml)); because the build runs in the
+reusable workflow, the provenance names it as the builder (SLSA Build L3,
+[`K22-CI-30`](../standards/ci-cd.md#release-pipelines)).
+
+1. **build** (Windows, read-only token): validates the tag (strict SemVer) and derives
+   the channel (`dev` for a prerelease, `stable` otherwise), re-runs the gates (locked
+   restore, zero-warning Release build, tests, coverage gate), then publishes the app
+   unpackaged and self-contained (Windows App SDK included, no trimming) and the optional
+   CLI as a self-contained single file.
+2. **package** (Windows, `release` environment): when `sign` is on, logs in to Azure with
+   OIDC and Authenticode-signs every published `.exe` and `.dll` **before** packing, so the
+   binaries inside the installer, the portable zip, and the update packages are signed;
+   `vpk pack` then signs `Setup.exe` with the same identity. Signing is off until
+   exception [EX-0002](../exceptions/register.md#ex-0002) closes. It downloads the previous
+   release on the same channel as the delta baseline, runs `vpk pack`, and keeps only this
+   build's assets with an update feed limited to them.
+3. **sbom** (Linux): CycloneDX 1.6 SBOMs of the published app and CLI, attested against
+   the installer, portable zip, full package, and CLI zip.
+4. **attest** (Linux): `SHA256SUMS` over every asset (including the fixed-name Setup,
+   portable, and feed files), then build provenance for all of them.
+5. **release** (Linux): a draft release with every asset and generated notes, then
+   publish. Installed apps see the update only once the release is published.
+6. **winget** (in the app's own workflow, stable releases only, optional): submits the
+   manifest update with the app's `WINGET_TOKEN`.
 
 ## 7. Threat model summary
 

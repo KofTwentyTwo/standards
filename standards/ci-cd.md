@@ -130,7 +130,8 @@ badge.
 
 **K22-CI-30 (MUST)** Releases are built only by a workflow triggered by a protected
 `v*` tag, running on a GitHub-hosted runner, through a **reusable workflow** from
-`KofTwentyTwo/standards` (`release-nuget.yml` for NuGet packages), so the build
+`KofTwentyTwo/standards` (`release-nuget.yml` for NuGet packages, `release-velopack.yml`
+for Windows desktop applications), so the build
 platform and its definition are isolated from the calling repository. Publishing to a
 registry whose trusted publishing binds the token to the calling repository's own
 workflow file (nuget.org does) runs in a job of the caller's tag workflow, after it has

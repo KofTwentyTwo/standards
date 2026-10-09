@@ -104,6 +104,32 @@ action, made once per repository on nuget.org (profile → Trusted Publishing):
 Then set the repository variable `NUGET_USER` to the nuget.org profile name. Until the
 variable is set, the `publish` job is skipped and the release stays GitHub-only.
 
+### Windows desktop applications
+
+Windows apps are released by the shared
+[`release-velopack.yml`](../.github/workflows/release-velopack.yml) workflow
+([template](../templates/workflows/release-velopack.yml)), as described in the
+[Windows reference architecture](../architecture/windows-desktop-app.md#6-build-and-release-pipeline).
+It re-runs the gates, publishes the app unpackaged and self-contained (and an optional
+single-file CLI), packs it with Velopack on the `stable` channel (or `dev` for a
+prerelease tag), writes CycloneDX SBOMs of the published output, `SHA256SUMS`, and
+provenance and SBOM attestations, and publishes the GitHub release that installed apps
+update from.
+
+| Asset | Name |
+| --- | --- |
+| Installer | `<app-id>-<channel>-Setup.exe` (fixed name per channel, listed in `SHA256SUMS`) |
+| Portable build | `<app-id>-<channel>-Portable.zip` (fixed name, listed in `SHA256SUMS`) |
+| Update packages | `<app-id>-<version>-<channel>-full.nupkg`, and `-delta.nupkg` after the first release on a channel |
+| Update feed | `releases.<channel>.json` (this build's packages only) |
+| CLI | `<app-id>-cli-<runtime>-<version>.zip` |
+| SBOMs | `<app-id>-<version>.cdx.json`, `<app-id>-cli-<version>.cdx.json` |
+
+Authenticode signing with Azure Trusted Signing (OIDC, `sign: true`) is built in and off
+until exception [EX-0002](../exceptions/register.md#ex-0002) closes. The optional winget
+update runs in the calling repository's workflow, because its token belongs to that
+repository's `release` environment.
+
 ## Release process
 
 **K22-REL-12 (MUST)** Each MINOR or MAJOR release has a release checklist (an issue made
