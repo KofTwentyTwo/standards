@@ -86,8 +86,8 @@ jobs:
       prerelease: ${{ steps.version.outputs.prerelease }}
       packages: ${{ steps.packages.outputs.packages }}
     env:
-      SOLUTION: ${{ inputs.solution }}
-      PLATFORM: ${{ inputs.platform }}
+      K22_SOLUTION: ${{ inputs.solution }}
+      K22_PLATFORM: ${{ inputs.platform }}
       TEST_PROJECTS: ${{ inputs.test-projects }}
       COVERAGE_PACKAGES: ${{ inputs.coverage-packages }}
       COVERAGE_MINIMUM: ${{ inputs.coverage-minimum }}
@@ -133,13 +133,13 @@ jobs:
       # request run must never reach a release.
       - name: Restore (locked)
         shell: pwsh
-        run: dotnet restore $env:SOLUTION "-p:Platform=$env:PLATFORM" --locked-mode
+        run: dotnet restore $env:K22_SOLUTION "-p:Platform=$env:K22_PLATFORM" --locked-mode
 
       - name: Build (Release, warnings as errors)
         shell: pwsh
         env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: dotnet build $env:SOLUTION -c Release "-p:Platform=$env:PLATFORM" "-p:Version=$env:VERSION" -warnaserror --no-restore
+          K22_VERSION: ${{ steps.version.outputs.version }}
+        run: dotnet build $env:K22_SOLUTION -c Release "-p:Platform=$env:K22_PLATFORM" "-p:Version=$env:K22_VERSION" -warnaserror --no-restore
 
       - name: Test with coverage
         if: inputs.test-projects != ''
@@ -189,8 +189,8 @@ jobs:
       - name: Pack
         shell: pwsh
         env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: dotnet pack $env:SOLUTION -c Release "-p:Platform=$env:PLATFORM" "-p:Version=$env:VERSION" --no-build -o artifacts/nuget
+          K22_VERSION: ${{ steps.version.outputs.version }}
+        run: dotnet pack $env:K22_SOLUTION -c Release "-p:Platform=$env:K22_PLATFORM" "-p:Version=$env:K22_VERSION" --no-build -o artifacts/nuget
 
       # Maps each package to the project folder whose packages.lock.json describes its
       # dependencies, for the SBOM job. Package ids come from the produced file names.
@@ -198,9 +198,9 @@ jobs:
         id: packages
         shell: pwsh
         env:
-          VERSION: ${{ steps.version.outputs.version }}
+          K22_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          $suffix = ".$env:VERSION.nupkg"
+          $suffix = ".$env:K22_VERSION.nupkg"
           $entries = foreach ($file in Get-ChildItem -Path artifacts/nuget -Filter '*.nupkg')
           {
              if (-not $file.Name.EndsWith($suffix, [StringComparison]::OrdinalIgnoreCase)) { continue }
@@ -348,14 +348,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
-          VERSION: ${{ needs.build.outputs.version }}
+          K22_VERSION: ${{ needs.build.outputs.version }}
           PRERELEASE: ${{ needs.build.outputs.prerelease }}
           REPOSITORY_NAME: ${{ github.event.repository.name }}
         run: |
           prerelease_flag=()
           if [[ "$PRERELEASE" == "true" ]]; then prerelease_flag=(--prerelease); fi
           gh release create "$TAG" --draft --verify-tag --generate-notes \
-            --title "$REPOSITORY_NAME $VERSION" "${prerelease_flag[@]}" release/*
+            --title "$REPOSITORY_NAME $K22_VERSION" "${prerelease_flag[@]}" release/*
 
       - name: Publish release
         env:

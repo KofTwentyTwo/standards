@@ -71,8 +71,10 @@ jobs:
     permissions:
       contents: read
     env:
-      SOLUTION: ${{ inputs.solution }}
-      PLATFORM: ${{ inputs.platform }}
+      # Prefixed: MSBuild turns every environment variable into a property, so a variable
+      # named PLATFORM would silently change output paths (bin/x64/) for dotnet test.
+      K22_SOLUTION: ${{ inputs.solution }}
+      K22_PLATFORM: ${{ inputs.platform }}
       TEST_PROJECTS: ${{ inputs.test-projects }}
       COVERAGE_PACKAGES: ${{ inputs.coverage-packages }}
       COVERAGE_MINIMUM: ${{ inputs.coverage-minimum }}
@@ -93,12 +95,12 @@ jobs:
       # the build can only use the dependency graph that was reviewed and scanned.
       - name: Restore (locked)
         shell: pwsh
-        run: dotnet restore $env:SOLUTION "-p:Platform=$env:PLATFORM" --locked-mode
+        run: dotnet restore $env:K22_SOLUTION "-p:Platform=$env:K22_PLATFORM" --locked-mode
 
       # -warnaserror also fails on NuGetAudit vulnerability warnings.
       - name: Build (warnings as errors)
         shell: pwsh
-        run: dotnet build $env:SOLUTION "-p:Platform=$env:PLATFORM" -warnaserror --no-restore
+        run: dotnet build $env:K22_SOLUTION "-p:Platform=$env:K22_PLATFORM" -warnaserror --no-restore
 
       - name: Test with coverage
         if: inputs.test-projects != ''
@@ -170,7 +172,7 @@ jobs:
       - name: Pack (Release)
         if: inputs.pack
         shell: pwsh
-        run: dotnet pack $env:SOLUTION -c Release "-p:Platform=$env:PLATFORM" -o artifacts/nuget
+        run: dotnet pack $env:K22_SOLUTION -c Release "-p:Platform=$env:K22_PLATFORM" -o artifacts/nuget
 
       - name: Upload packages
         if: inputs.pack
@@ -187,8 +189,8 @@ jobs:
     permissions:
       contents: read
     env:
-      SOLUTION: ${{ inputs.solution }}
-      PLATFORM: ${{ inputs.platform }}
+      K22_SOLUTION: ${{ inputs.solution }}
+      K22_PLATFORM: ${{ inputs.platform }}
       DOTNET_CLI_TELEMETRY_OPTOUT: "1"
       DOTNET_NOLOGO: "1"
     steps:
@@ -204,14 +206,20 @@ jobs:
 
       - name: Restore (locked)
         shell: pwsh
-        run: dotnet restore $env:SOLUTION "-p:Platform=$env:PLATFORM" --locked-mode
+        run: dotnet restore $env:K22_SOLUTION "-p:Platform=$env:K22_PLATFORM" --locked-mode
 
       # The Kingsrook .editorconfig sets layout (IDE0055) and the style rules to
       # warning, so --severity warn makes any layout or style drift fail here exactly
       # as it fails `dotnet build` at the desk.
+      # dotnet format analyzes the workspace without running XAML compilation; without the
+      # generated *.g.cs files from a build, XAML event handlers look unused (IDE0051).
+      - name: Build (generates XAML code the analyzers need)
+        shell: pwsh
+        run: dotnet build $env:K22_SOLUTION "-p:Platform=$env:K22_PLATFORM" --no-restore
+
       - name: Verify formatting (whitespace, style, analyzers)
         shell: pwsh
-        run: dotnet format $env:SOLUTION --verify-no-changes --severity warn --no-restore
+        run: dotnet format $env:K22_SOLUTION --verify-no-changes --severity warn --no-restore
 
   ui-tests:
     name: ui-tests
@@ -221,8 +229,8 @@ jobs:
     permissions:
       contents: read
     env:
-      SOLUTION: ${{ inputs.solution }}
-      PLATFORM: ${{ inputs.platform }}
+      K22_SOLUTION: ${{ inputs.solution }}
+      K22_PLATFORM: ${{ inputs.platform }}
       UI_TEST_PROJECTS: ${{ inputs.ui-test-projects }}
       DOTNET_CLI_TELEMETRY_OPTOUT: "1"
       DOTNET_NOLOGO: "1"
@@ -239,11 +247,11 @@ jobs:
 
       - name: Restore (locked)
         shell: pwsh
-        run: dotnet restore $env:SOLUTION "-p:Platform=$env:PLATFORM" --locked-mode
+        run: dotnet restore $env:K22_SOLUTION "-p:Platform=$env:K22_PLATFORM" --locked-mode
 
       - name: Build
         shell: pwsh
-        run: dotnet build $env:SOLUTION "-p:Platform=$env:PLATFORM" --no-restore
+        run: dotnet build $env:K22_SOLUTION "-p:Platform=$env:K22_PLATFORM" --no-restore
 
       # FlaUI drives the built apps on the hosted runner's interactive desktop.
       - name: Run UI tests
