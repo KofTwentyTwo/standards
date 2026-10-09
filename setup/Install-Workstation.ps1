@@ -44,7 +44,8 @@
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Interactive installer: colored console output is its user interface.')]
 [CmdletBinding(SupportsShouldProcess)]
 param(
-   [ValidateSet('dotnet', 'java', 'python', 'rust', 'go', 'swift', 'shell', 'terraform')]
+   # Validated after splitting: `pwsh -File` (used by the bootstraps) passes "dotnet,java"
+   # as a single string.
    [string[]] $Languages = @(),
 
    [string] $SigningKey,
@@ -58,6 +59,14 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+$supportedLanguages = @('dotnet', 'java', 'python', 'rust', 'go', 'swift', 'shell', 'terraform')
+$Languages = @($Languages | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim().ToLowerInvariant() } | Where-Object { $_ })
+$unknown = @($Languages | Where-Object { $_ -notin $supportedLanguages })
+if ($unknown.Count -gt 0)
+{
+   throw "Unknown language(s): $($unknown -join ', '). Supported: $($supportedLanguages -join ', ')."
+}
 
 
 
