@@ -19,7 +19,10 @@ requires all of them:
 | `security / sca` | No HIGH or CRITICAL vulnerability, and no package flagged as malicious (OSV `MAL-` advisories), in the resolved dependency graph | `security.yml` |
 | `security / workflows` | Workflow files pass zizmor and actionlint | `security.yml` |
 | `codeql / analyze (<language>)` | No CodeQL alert at *high* severity or above | `codeql.yml` |
-| Language checks, e.g. `ci / build-test`, `ci / format` | Zero-warning build, tests, coverage gate, format | language workflow |
+| `ci / build-test` (.NET) | Locked restore, zero-warning build, tests, coverage gate | `dotnet.yml` |
+| `ci / format` (.NET) | `dotnet format --verify-no-changes --severity warn`: Kingsrook layout, style, analyzers | `dotnet.yml` |
+| `ci / ui-tests` (.NET apps with UI tests) | FlaUI end-to-end tests against the built app | `dotnet.yml` |
+| Other languages | The language profile's build, test, coverage, and format commands | language workflow |
 
 *Why:* the merge gate is the same in every repository and cannot be skipped.
 *Verified by:* conformance checker (required contexts in the ruleset). *Maps to:*
@@ -127,10 +130,15 @@ badge.
 
 **K22-CI-30 (MUST)** Releases are built only by a workflow triggered by a protected
 `v*` tag, running on a GitHub-hosted runner, through a **reusable workflow** from
-`KofTwentyTwo/standards`, so the build platform and its definition are isolated from
-the calling repository.
+`KofTwentyTwo/standards` (`release-nuget.yml` for NuGet packages), so the build
+platform and its definition are isolated from the calling repository. Publishing to a
+registry whose trusted publishing binds the token to the calling repository's own
+workflow file (nuget.org does) runs in a job of the caller's tag workflow, after it has
+verified the artifacts' attestations were signed by the reusable workflow.
 *Why:* this is what makes provenance trustworthy (SLSA Build L3). *Verified by:*
-provenance `builder.id` names the reusable workflow. See [releases](releases.md).
+provenance `builder.id` names the reusable workflow; conformance checker (the tag
+workflow calls `KofTwentyTwo/standards/.github/workflows/release-*.yml` pinned by SHA).
+See [releases](releases.md).
 
 **K22-CI-31 (MUST)** A release re-runs every gate that guards `main` (build, tests,
 coverage, security scans) before publishing anything.

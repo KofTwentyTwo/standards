@@ -234,6 +234,8 @@ from each repository:
 | `pr.yml` | `pr / title`, `pr / dco`, `pr / dependency-review` | Conventional Commit PR title, DCO sign-off on every commit, new dependencies' vulnerabilities and licenses |
 | `security.yml` | `security / secrets`, `security / sca`, `security / workflows` | gitleaks over full history; Trivy vulnerabilities and OSV malicious-package advisories in the dependency graph; zizmor and actionlint on workflows |
 | `codeql.yml` | `codeql / analyze (<language>)` | CodeQL `security-extended`, failing on high severity and above |
+| `dotnet.yml` | `ci / build-test`, `ci / format`, `ci / ui-tests` | .NET locked restore, zero-warning build, tests, coverage gate, Kingsrook format check, FlaUI UI tests |
+| `release-nuget.yml` | (tag workflow) | NuGet release: gates, pack, SBOM, checksums, SLSA provenance, GitHub release; pairs with a caller `publish` job for nuget.org |
 
 A caller looks like this:
 

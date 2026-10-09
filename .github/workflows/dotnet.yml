@@ -1,0 +1,257 @@
+# .NET build, test, coverage, and format gates (K22-CI-01, K22-CI-02, K22-TEST-10,
+# K22-DEP-11, K22-CODE-01). Called as:
+#
+#   jobs:
+#     ci:
+#       uses: KofTwentyTwo/standards/.github/workflows/dotnet.yml@<sha> # vX.Y.Z
+#       permissions:
+#         contents: read
+#       with:
+#         solution: MySolution.slnx
+#         coverage-packages: My.Library,My.Library.Core
+#         test-projects: tests/My.Library.Tests
+#         ui-test-projects: tests/My.App.UiTests
+#
+# producing the required contexts `ci / build-test` and `ci / format`, plus
+# `ci / ui-tests` when ui-test-projects is set. Every step runs the same command a
+# developer runs locally (K22-CI-03):
+#
+#   dotnet restore <solution> -p:Platform=x64 --locked-mode
+#   dotnet build <solution> -p:Platform=x64 -warnaserror --no-restore
+#   dotnet test <project> --no-build --collect:"XPlat Code Coverage"
+#   dotnet format <solution> --verify-no-changes --severity warn --no-restore
+#
+# Test projects are run without -p:Platform: an x64 solution build maps AnyCPU test
+# projects to their AnyCPU output folders, which is where `dotnet test` must look.
+name: dotnet
+
+on:
+  workflow_call:
+    inputs:
+      solution:
+        description: Solution (.slnx or .sln) or project file to build, relative to the repository root.
+        type: string
+        required: true
+      platform:
+        description: Solution platform passed as -p:Platform (WinUI solutions need x64, x86, or ARM64).
+        type: string
+        default: x64
+      runs-on:
+        description: Runner label. WinUI and WPF solutions need a Windows runner.
+        type: string
+        default: windows-latest
+      coverage-packages:
+        description: Comma-separated assembly (coverage package) names that must meet coverage-minimum. Empty disables the gate.
+        type: string
+        default: ""
+      coverage-minimum:
+        description: Minimum line coverage, in percent, for each package in coverage-packages.
+        type: number
+        default: 100
+      test-projects:
+        description: Newline-separated test projects to run with coverage.
+        type: string
+        default: ""
+      ui-test-projects:
+        description: Newline-separated end-to-end UI test projects (FlaUI). Empty skips the ui-tests job.
+        type: string
+        default: ""
+      pack:
+        description: Also run dotnet pack (Release) and upload the packages as an artifact.
+        type: boolean
+        default: false
+
+permissions: {}
+
+jobs:
+  build-test:
+    name: build-test
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      SOLUTION: ${{ inputs.solution }}
+      PLATFORM: ${{ inputs.platform }}
+      TEST_PROJECTS: ${{ inputs.test-projects }}
+      COVERAGE_PACKAGES: ${{ inputs.coverage-packages }}
+      COVERAGE_MINIMUM: ${{ inputs.coverage-minimum }}
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      # --locked-mode fails if a resolved version differs from packages.lock.json, so
+      # the build can only use the dependency graph that was reviewed and scanned.
+      - name: Restore (locked)
+        shell: pwsh
+        run: dotnet restore $env:SOLUTION "-p:Platform=$env:PLATFORM" --locked-mode
+
+      # -warnaserror also fails on NuGetAudit vulnerability warnings.
+      - name: Build (warnings as errors)
+        shell: pwsh
+        run: dotnet build $env:SOLUTION "-p:Platform=$env:PLATFORM" -warnaserror --no-restore
+
+      - name: Test with coverage
+        if: inputs.test-projects != ''
+        shell: pwsh
+        run: |
+          $settings = @()
+          if (Test-Path -LiteralPath coverage.runsettings) { $settings = @('--settings', 'coverage.runsettings') }
+          $projects = $env:TEST_PROJECTS -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+          foreach ($project in $projects)
+          {
+             dotnet test $project --no-build @settings --collect:"XPlat Code Coverage" --results-directory TestResults
+             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      # Best line rate per package across every report: a package can be exercised by
+      # several test projects, and the report that covers it most is authoritative.
+      - name: Coverage gate
+        if: inputs.coverage-packages != ''
+        shell: pwsh
+        run: |
+          $files = @(Get-ChildItem -Path TestResults -Recurse -Filter coverage.cobertura.xml -ErrorAction SilentlyContinue)
+          if ($files.Count -eq 0)
+          {
+             Write-Output '::error::No coverage.cobertura.xml under TestResults; did the coverage collector run?'
+             exit 1
+          }
+          $reports = foreach ($file in $files) { [xml] (Get-Content -LiteralPath $file.FullName -Raw) }
+          $required = [double] $env:COVERAGE_MINIMUM / 100
+          $failed = $false
+          foreach ($name in ($env:COVERAGE_PACKAGES -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ }))
+          {
+             $best = $null
+             $bestPackage = $null
+             foreach ($report in $reports)
+             {
+                $package = @($report.coverage.packages.package) | Where-Object { $_.name -eq $name }
+                if (-not $package) { continue }
+                $rate = [double]::Parse($package.'line-rate', [Globalization.CultureInfo]::InvariantCulture)
+                if ($null -eq $best -or $rate -gt $best) { $best = $rate; $bestPackage = $package }
+             }
+             if ($null -eq $best)
+             {
+                Write-Output "::error::Package '$name' was not found in any coverage report."
+                $failed = $true
+                continue
+             }
+             Write-Output ('{0} line coverage: {1}% (required {2}%)' -f $name, [math]::Round($best * 100, 2), $env:COVERAGE_MINIMUM)
+             if ($best -lt $required)
+             {
+                foreach ($class in @($bestPackage.classes.class))
+                {
+                   $missed = @($class.lines.line) | Where-Object { $_.hits -eq '0' } | ForEach-Object { $_.number }
+                   if ($missed) { Write-Output "::error file=$($class.filename)::$name uncovered lines $($missed -join ', ')" }
+                }
+                $failed = $true
+             }
+          }
+          if ($failed) { exit 1 }
+          Write-Output 'Coverage gate passed.'
+
+      - name: Upload coverage
+        if: always() && inputs.test-projects != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-cobertura
+          path: TestResults/**/coverage.cobertura.xml
+          if-no-files-found: warn
+
+      - name: Pack (Release)
+        if: inputs.pack
+        shell: pwsh
+        run: dotnet pack $env:SOLUTION -c Release "-p:Platform=$env:PLATFORM" -o artifacts/nuget
+
+      - name: Upload packages
+        if: inputs.pack
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nuget-packages
+          path: artifacts/nuget/*
+          if-no-files-found: error
+
+  format:
+    name: format
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      SOLUTION: ${{ inputs.solution }}
+      PLATFORM: ${{ inputs.platform }}
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Restore (locked)
+        shell: pwsh
+        run: dotnet restore $env:SOLUTION "-p:Platform=$env:PLATFORM" --locked-mode
+
+      # The Kingsrook .editorconfig sets layout (IDE0055) and the style rules to
+      # warning, so --severity warn makes any layout or style drift fail here exactly
+      # as it fails `dotnet build` at the desk.
+      - name: Verify formatting (whitespace, style, analyzers)
+        shell: pwsh
+        run: dotnet format $env:SOLUTION --verify-no-changes --severity warn --no-restore
+
+  ui-tests:
+    name: ui-tests
+    if: inputs.ui-test-projects != ''
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      SOLUTION: ${{ inputs.solution }}
+      PLATFORM: ${{ inputs.platform }}
+      UI_TEST_PROJECTS: ${{ inputs.ui-test-projects }}
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Restore (locked)
+        shell: pwsh
+        run: dotnet restore $env:SOLUTION "-p:Platform=$env:PLATFORM" --locked-mode
+
+      - name: Build
+        shell: pwsh
+        run: dotnet build $env:SOLUTION "-p:Platform=$env:PLATFORM" --no-restore
+
+      # FlaUI drives the built apps on the hosted runner's interactive desktop.
+      - name: Run UI tests
+        shell: pwsh
+        run: |
+          $projects = $env:UI_TEST_PROJECTS -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+          foreach ($project in $projects)
+          {
+             dotnet test $project --no-build
+             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }

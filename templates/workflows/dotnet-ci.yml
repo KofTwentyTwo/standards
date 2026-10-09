@@ -1,0 +1,33 @@
+# .NET build, test, coverage, and format gates for a KofTwentyTwo repository
+# (K22-CI-01, K22-CI-02). Copy to .github/workflows/ci.yml and fill the inputs.
+#
+# Produces the required contexts `ci / build-test` and `ci / format` (and
+# `ci / ui-tests` when ui-test-projects is set). Reusable workflows are pinned by full
+# commit SHA (K22-CI-11): replace {{STANDARDS_SHA}} with the commit of the standards
+# release you conform to; Dependabot's github-actions ecosystem keeps it current.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  ci:
+    uses: KofTwentyTwo/standards/.github/workflows/dotnet.yml@{{STANDARDS_SHA}} # {{STANDARDS_VERSION}}
+    permissions:
+      contents: read
+    with:
+      solution: "{{SOLUTION}}"
+      platform: x64
+      coverage-packages: "{{COVERAGE_PACKAGES}}"
+      test-projects: |
+        {{TEST_PROJECT}}
+      ui-test-projects: |
+        {{UI_TEST_PROJECT}}

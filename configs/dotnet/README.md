@@ -22,16 +22,23 @@ formatter cannot express (three blank lines between members).
 1. Copy the three files. Keep any repository-specific groups of an existing
    `Directory.Build.props` (version, package metadata) and replace its quality settings.
 2. Set `* text=auto eol=lf` in `.gitattributes` (K22-CODE-07).
-3. Restore once so `packages.lock.json` files are created, and commit them.
-4. Reformat and fix:
+3. Add a `global.json` pinning the SDK feature band (`"rollForward": "latestFeature"`);
+   CI installs the SDK from it.
+4. Restore once so `packages.lock.json` files are created, and commit them. CI restores
+   with `--locked-mode`, which fails on any drift from the lock files, and the release
+   workflow builds each package's SBOM from them.
+5. Reformat and fix:
 
    ```powershell
    dotnet format                                   # layout, var, usings, naming, line endings
    dotnet build -warnaserror                       # remaining analyzer findings
    ```
 
-5. Commit the reformat on its own (`style: adopt Kingsrook layout`) so `git blame` can
+6. Commit the reformat on its own (`style: adopt Kingsrook layout`) so `git blame` can
    skip it: add that commit's hash to `.git-blame-ignore-revs`.
+7. Add the CI and release callers from
+   [`templates/workflows/dotnet-ci.yml`](../../templates/workflows/dotnet-ci.yml) and
+   [`templates/workflows/release-nuget.yml`](../../templates/workflows/release-nuget.yml).
 
 ## IDEs
 
