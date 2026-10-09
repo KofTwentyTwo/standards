@@ -1,0 +1,15 @@
+# KofTwentyTwo Rust lint levels (K22-CODE-RS-04). Merge into Cargo.toml (or the
+# [workspace.lints] table of a workspace).
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+unused_must_use = "deny"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "warn"
+expect_used = "warn"
+print_stdout = "warn"
+print_stderr = "warn"
+todo = "warn"
+dbg_macro = "warn"

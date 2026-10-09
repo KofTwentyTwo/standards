@@ -1,0 +1,5 @@
+# KofTwentyTwo ShellCheck configuration (K22-CODE-SH). CI runs
+# `shellcheck --severity=style` on every *.sh file; zero findings allowed.
+shell=bash
+enable=all
+external-sources=true

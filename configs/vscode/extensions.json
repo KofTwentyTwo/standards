@@ -1,0 +1,26 @@
+// KofTwentyTwo recommended VS Code extensions. Copy to .vscode/extensions.json and keep
+// the entries for the languages the repository uses.
+{
+   "recommendations": [
+      "editorconfig.editorconfig",
+      "ms-dotnettools.csdevkit",
+      "redhat.java",
+      "shengchen.vscode-checkstyle",
+      "dbaeumer.vscode-eslint",
+      "charliermarsh.ruff",
+      "ms-python.vscode-pylance",
+      "rust-lang.rust-analyzer",
+      "tamasfe.even-better-toml",
+      "golang.go",
+      "swiftlang.swift-vscode",
+      "timonwong.shellcheck",
+      "mkhl.shfmt",
+      "ms-vscode.powershell",
+      "hashicorp.terraform",
+      "redhat.vscode-yaml",
+      "github.vscode-github-actions"
+   ],
+   "unwantedRecommendations": [
+      "esbenp.prettier-vscode"
+   ]
+}

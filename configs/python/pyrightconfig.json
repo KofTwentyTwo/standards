@@ -1,0 +1,11 @@
+{
+   "$schema": "https://raw.githubusercontent.com/microsoft/pyright/main/packages/vscode-pyright/schemas/pyrightconfig.schema.json",
+   "_comment": "KofTwentyTwo Python type checking (K22-CODE-PY-03): strict mode, zero errors in CI.",
+   "typeCheckingMode": "strict",
+   "pythonVersion": "3.13",
+   "include": ["src", "tests"],
+   "reportMissingTypeStubs": "error",
+   "reportUnnecessaryTypeIgnoreComment": "error",
+   "reportImplicitOverride": "error",
+   "reportShadowedImports": "error"
+}

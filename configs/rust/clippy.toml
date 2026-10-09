@@ -1,0 +1,12 @@
+# KofTwentyTwo clippy configuration (K22-CODE-RS-04). CI runs:
+#   cargo clippy --all-targets --all-features -- -D warnings -W clippy::pedantic
+# Lint levels live in Cargo.toml [lints]; this file holds clippy's thresholds.
+msrv = "1.85"
+avoid-breaking-exported-api = true
+cognitive-complexity-threshold = 30
+too-many-lines-threshold = 120
+disallowed-macros = [
+   { path = "std::println", reason = "use the tracing/log crate (structured logging)" },
+   { path = "std::eprintln", reason = "use the tracing/log crate (structured logging)" },
+   { path = "std::dbg", reason = "remove debugging output before merging" },
+]

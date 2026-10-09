@@ -1,0 +1,27 @@
+{
+   "$schema": "https://json.schemastore.org/tsconfig",
+   "_comment": "KofTwentyTwo strict TypeScript baseline (K22-CODE-TS-03). Extend it: { \"extends\": \"./tsconfig.k22.json\" }.",
+   "compilerOptions": {
+      "target": "ES2024",
+      "module": "NodeNext",
+      "moduleResolution": "NodeNext",
+      "lib": ["ES2024"],
+      "strict": true,
+      "noUncheckedIndexedAccess": true,
+      "exactOptionalPropertyTypes": true,
+      "noImplicitOverride": true,
+      "noImplicitReturns": true,
+      "noFallthroughCasesInSwitch": true,
+      "noUnusedLocals": true,
+      "noUnusedParameters": true,
+      "noPropertyAccessFromIndexSignature": true,
+      "useUnknownInCatchVariables": true,
+      "verbatimModuleSyntax": true,
+      "isolatedModules": true,
+      "forceConsistentCasingInFileNames": true,
+      "skipLibCheck": true,
+      "declaration": true,
+      "sourceMap": true,
+      "newLine": "lf"
+   }
+}

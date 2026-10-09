@@ -1,0 +1,75 @@
+// KofTwentyTwo VS Code workspace settings (K22-CODE-*). Copy to .vscode/settings.json
+// and delete the sections for languages the repository does not use. Layout comes from
+// .editorconfig; these settings make each language's formatter and linter run on save
+// with the same configuration CI uses.
+{
+   "editor.insertSpaces": true,
+   "editor.tabSize": 3,
+   "editor.detectIndentation": false,
+   "editor.formatOnSave": true,
+   "editor.rulers": [],
+   "files.eol": "\n",
+   "files.insertFinalNewline": true,
+   "files.trimTrailingWhitespace": true,
+   "files.trimFinalNewlines": true,
+   "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit",
+      "source.fixAll": "explicit"
+   },
+
+   // C# / .NET: C# Dev Kit applies .editorconfig and the analyzers from the build.
+   "[csharp]": { "editor.defaultFormatter": "ms-dotnettools.csharp" },
+   "dotnet.formatting.organizeImportsOnFormat": true,
+   "dotnet.backgroundAnalysis.analyzerDiagnosticsScope": "fullSolution",
+   "dotnet.backgroundAnalysis.compilerDiagnosticsScope": "fullSolution",
+
+   // Java: the Kingsrook Eclipse formatter profile plus Checkstyle.
+   "[java]": { "editor.defaultFormatter": "redhat.java" },
+   "java.format.settings.url": "https://raw.githubusercontent.com/KofTwentyTwo/standards/main/configs/eclipse/eclipse-formatter.xml",
+   "java.format.settings.profile": "Kingsrook-Eclipse",
+   "java.checkstyle.configuration": "https://raw.githubusercontent.com/KofTwentyTwo/standards/main/configs/java/checkstyle/checkstyle.xml",
+   "java.checkstyle.version": "14.3.0",
+
+   // TypeScript / JavaScript: ESLint (with @stylistic) is the formatter; no Prettier.
+   "[typescript]": { "editor.defaultFormatter": "dbaeumer.vscode-eslint" },
+   "[typescriptreact]": { "editor.defaultFormatter": "dbaeumer.vscode-eslint" },
+   "[javascript]": { "editor.defaultFormatter": "dbaeumer.vscode-eslint" },
+   "eslint.useFlatConfig": true,
+   "eslint.format.enable": true,
+   "typescript.tsdk": "node_modules/typescript/lib",
+
+   // Python: ruff formats and lints; Pylance runs pyright in strict mode.
+   "[python]": {
+      "editor.defaultFormatter": "charliermarsh.ruff",
+      "editor.codeActionsOnSave": { "source.fixAll.ruff": "explicit", "source.organizeImports.ruff": "explicit" }
+   },
+   "python.analysis.typeCheckingMode": "strict",
+
+   // Rust: rustfmt on save, clippy as the checker.
+   "[rust]": { "editor.defaultFormatter": "rust-lang.rust-analyzer" },
+   "rust-analyzer.check.command": "clippy",
+
+   // Go: gofmt layout (tabs) is the language standard (K22-CODE-GO-02).
+   "[go]": { "editor.defaultFormatter": "golang.go", "editor.insertSpaces": false, "editor.tabSize": 4 },
+   "go.lintTool": "golangci-lint",
+   "go.lintFlags": ["--fast-only"],
+
+   // Swift
+   "[swift]": { "editor.defaultFormatter": "swiftlang.swift-vscode" },
+
+   // Shell and PowerShell
+   "[shellscript]": { "editor.defaultFormatter": "mkhl.shfmt" },
+   "shellcheck.enable": true,
+   "[powershell]": { "editor.defaultFormatter": "ms-vscode.powershell" },
+   "powershell.codeFormatting.preset": "Allman",
+   "powershell.scriptAnalysis.settingsPath": "PSScriptAnalyzerSettings.psd1",
+
+   // Terraform / OpenTofu: fixed 2-space layout from `fmt` (K22-CODE-TF-02).
+   "[terraform]": { "editor.defaultFormatter": "hashicorp.terraform", "editor.tabSize": 2 },
+
+   // Data formats: 3 spaces like code; YAML keeps 2.
+   "[json][jsonc]": { "editor.tabSize": 3 },
+   "[xml]": { "editor.tabSize": 3 },
+   "[yaml]": { "editor.tabSize": 2 },
+   "[markdown]": { "files.trimTrailingWhitespace": false }
+}

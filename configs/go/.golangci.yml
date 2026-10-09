@@ -1,0 +1,48 @@
+# KofTwentyTwo golangci-lint v2 configuration (K22-CODE-GO). CI runs
+# `golangci-lint run` and `golangci-lint fmt --diff`; zero findings allowed.
+# Layout is gofmt's (tabs, same-line braces): Go's formatter is not configurable and is
+# mandatory across the ecosystem, so Kingsrook layout does not apply (K22-CODE-GO-02).
+version: "2"
+
+run:
+  timeout: 5m
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/KofTwentyTwo
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - errorlint
+    - exhaustive
+    - forbidigo
+    - gocritic
+    - godot
+    - gosec
+    - misspell
+    - nilerr
+    - noctx
+    - revive
+    - sloglint
+    - unconvert
+    - wrapcheck
+  settings:
+    forbidigo:
+      forbid:
+        - pattern: ^fmt\.Print.*$
+          msg: use log/slog (structured key/value logging)
+        - pattern: ^print(ln)?$
+          msg: use log/slog (structured key/value logging)
+    revive:
+      rules:
+        - name: exported
+        - name: var-naming
+    sloglint:
+      kv-only: true

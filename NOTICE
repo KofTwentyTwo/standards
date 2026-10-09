@@ -1,0 +1,25 @@
+KofTwentyTwo Standards
+Copyright (c) 2026 James Maes (KofTwentyTwo)
+
+This repository adopts the Kingsrook code style as the KofTwentyTwo coding standard.
+The following material originates from the QQQ project
+(https://github.com/QRun-IO/qqq), Copyright (C) 2021-2026 Kingsrook, LLC,
+licensed under the Apache License, Version 2.0
+(https://www.apache.org/licenses/LICENSE-2.0). A copy of that license is at
+configs/intellij/LICENSE-Kingsrook-Apache-2.0.
+
+Adopted unmodified (an origin comment was added to each file):
+  configs/intellij/Kingsrook_Code_Style.xml           (qqq-dev-tools/intellij/Kingsrook_Code_Style.xml)
+  configs/intellij/Kingsrook_Copyright_Profile.xml    (qqq-dev-tools/intellij/Kingsrook_Copyright_Profile.xml)
+  configs/intellij/live-templates/Kingsrook-Java.xml  (qqq-dev-tools/intellij/live-templates/Kingsrook-Java.xml)
+  configs/intellij/live-templates/Kingsrook-SQL.xml   (qqq-dev-tools/intellij/live-templates/Kingsrook-SQL.xml)
+  configs/eclipse/eclipse-formatter.xml               (qctl eclipse-formatter.xml)
+  configs/java/checkstyle/kingsrook-checkstyle.xml    (checkstyle/config.xml)
+
+Adopted with modifications (changes are listed at the top of each file):
+  configs/java/checkstyle/checkstyle.xml              (derived from checkstyle/config.xml)
+  configs/intellij/project/.idea/codeStyles/Project.xml (derived from Kingsrook_Code_Style.xml)
+
+The prose rules in standards/coding/README.md restate the Kingsrook CODE_STYLE.md
+(https://github.com/QRun-IO/qqq/blob/develop/CODE_STYLE.md) as KofTwentyTwo
+requirements, and extend them to languages other than Java.

@@ -1,0 +1,13 @@
+# KofTwentyTwo rustfmt configuration (K22-CODE-RS). Stable-channel options only, so
+# `cargo fmt --check` behaves the same on every toolchain.
+edition = "2024"
+# Kingsrook: 3-space indentation (tab_spaces is a stable option).
+tab_spaces = 3
+hard_tabs = false
+newline_style = "Unix"
+# Kingsrook: no practical line limit. 200 keeps rustfmt's wrapping heuristics sane.
+max_width = 200
+use_field_init_shorthand = true
+use_try_shorthand = true
+# Not set: brace_style = "AlwaysNextLine" and blank_lines_upper_bound are nightly-only.
+# Rust therefore keeps rustfmt's same-line braces (profile rule K22-CODE-RS-02).

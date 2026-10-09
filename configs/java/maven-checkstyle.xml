@@ -1,0 +1,35 @@
+<!--
+  KofTwentyTwo Checkstyle enforcement for Maven (K22-CODE-JV-02). Paste inside
+  <build><plugins> of the root pom.xml. Runs in the validate phase, so `mvn verify` (CI)
+  and every local build fail on a violation. Pin versions to the latest stable releases.
+-->
+<plugin>
+   <groupId>org.apache.maven.plugins</groupId>
+   <artifactId>maven-checkstyle-plugin</artifactId>
+   <version>3.6.0</version>
+   <dependencies>
+      <dependency>
+         <groupId>com.puppycrawl.tools</groupId>
+         <artifactId>checkstyle</artifactId>
+         <version>14.3.0</version>
+      </dependency>
+   </dependencies>
+   <configuration>
+      <!-- A local copy keeps builds reproducible; the published URL also works. -->
+      <configLocation>checkstyle/checkstyle.xml</configLocation>
+      <consoleOutput>true</consoleOutput>
+      <includeTestSourceDirectory>true</includeTestSourceDirectory>
+      <failOnViolation>true</failOnViolation>
+      <!-- The Kingsrook config reports at "warning"; treat every warning as a failure. -->
+      <violationSeverity>warning</violationSeverity>
+   </configuration>
+   <executions>
+      <execution>
+         <id>checkstyle</id>
+         <phase>validate</phase>
+         <goals>
+            <goal>check</goal>
+         </goals>
+      </execution>
+   </executions>
+</plugin>

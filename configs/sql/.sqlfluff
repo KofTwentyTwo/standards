@@ -1,0 +1,24 @@
+# KofTwentyTwo SQL style (K22-CODE-01, SQL section of the coding README). Matches the
+# Kingsrook IntelliJ SQL scheme and live templates: 3-space indentation, upper-case
+# keywords, lower-case identifiers (snake_case column names).
+# CI: `sqlfluff lint`; local fix: `sqlfluff fix`. Set `dialect` per repository.
+[sqlfluff]
+dialect = postgres
+max_line_length = 0
+exclude_rules = LT05
+
+[sqlfluff:indentation]
+indent_unit = space
+tab_space_size = 3
+
+[sqlfluff:rules:capitalisation.keywords]
+capitalisation_policy = upper
+
+[sqlfluff:rules:capitalisation.identifiers]
+extended_capitalisation_policy = lower
+
+[sqlfluff:rules:capitalisation.functions]
+extended_capitalisation_policy = upper
+
+[sqlfluff:rules:capitalisation.types]
+extended_capitalisation_policy = upper
