@@ -84,57 +84,70 @@ Every rule has a stable ID (`K22-SDLC-12`, `K22-CODE-03`, …), a level (**MUST*
 
 ## Set up your machine
 
-You need git with commit signing, the GitHub CLI, PowerShell 7 (for the conformance
-checker), and the four security tools the hooks and CI use. Language toolchains come
-from the [language profiles](standards/coding/README.md#language-profiles).
+One script sets up a workstation on Windows, macOS, or Linux, and checks it afterwards
+([workstation standard](standards/workstation.md)). It installs the tools, configures
+git to sign every commit with an SSH key **held in 1Password** (no key files on disk),
+and checks disk encryption, firewall, malware protection, and stray private keys. It
+is safe to run again at any time.
 
-### Windows
+**Before you run it:** install [1Password](https://1password.com/downloads/), turn on
+*Settings → Developer → Use the SSH agent*, and create (or import) an SSH key item for
+GitHub. Set your git name and a verified GitHub email:
+`git config --global user.name "…"` and `git config --global user.email "…"`.
+
+### Windows (PowerShell)
 
 ```powershell
-winget install --id Git.Git -e
-winget install --id GitHub.cli -e
-winget install --id Microsoft.PowerShell -e
-winget install --id astral-sh.uv -e
-winget install --id Gitleaks.Gitleaks -e
-winget install --id AquaSecurity.Trivy -e
-winget install --id rhysd.actionlint -e
-uv tool install zizmor
-uv tool install pre-commit
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/KofTwentyTwo/standards/main/setup/bootstrap.ps1)))
 ```
 
-### macOS
+### macOS and Linux (Terminal)
 
 ```bash
-brew install git gh uv gitleaks trivy actionlint zizmor pre-commit
-brew install --cask powershell
+curl -fsSL https://raw.githubusercontent.com/KofTwentyTwo/standards/main/setup/bootstrap.sh | bash
 ```
 
-### Linux
+The bootstrap installs PowerShell 7 (and Homebrew on macOS/Linux) if needed, then runs
+[`setup/Install-Workstation.ps1`](setup/Install-Workstation.ps1).
 
-Install `git`, `gh`, `gitleaks`, `trivy`, `actionlint`, and PowerShell from your
-distribution or each project's releases, then `uv tool install zizmor pre-commit`.
+### Options
 
-### Configure git (once per machine)
+Add them after the command (Windows), or after `bash -s --` (macOS/Linux):
 
-Every commit on `main` must be signed ([`K22-SDLC-14`](policies/sdlc.md#build)) and
-carry a DCO sign-off ([`K22-SDLC-13`](policies/sdlc.md#build)).
+| Option | Effect |
+| --- | --- |
+| `-Languages dotnet,java,python,rust,go,swift,shell,terraform` | Also install those toolchains |
+| `-SigningKey GitHub` | Sign with the 1Password SSH key whose name contains "GitHub" (otherwise it asks) |
+| `-RegisterSigningKey` | Upload that key to GitHub as a *signing* key |
+| `-CheckOnly` | Change nothing; report PASS / WARN / FAIL |
+| `-WhatIf` | Show every change it would make |
+
+```powershell
+# Windows: .NET and Java developer, register the signing key with GitHub
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/KofTwentyTwo/standards/main/setup/bootstrap.ps1))) -Languages dotnet,java -SigningKey GitHub -RegisterSigningKey
+```
 
 ```bash
-# Sign commits and tags with your SSH key
-git config --global gpg.format ssh
-git config --global user.signingkey ~/.ssh/id_ed25519.pub
-git config --global commit.gpgsign true
-git config --global tag.gpgsign true
-
-# Register the same key on GitHub as a *signing* key (separate from authentication)
-gh ssh-key add ~/.ssh/id_ed25519.pub --type signing --title "commit signing"
-
-# Sign off every commit: use `git commit -s`, or this alias
-git config --global alias.cs "commit -s"
+# macOS: check an existing machine without changing anything
+curl -fsSL https://raw.githubusercontent.com/KofTwentyTwo/standards/main/setup/bootstrap.sh | bash -s -- -CheckOnly
 ```
 
-The email in `user.email` must be a verified email on your GitHub account, or commits
-will not show as *Verified*.
+### Prefer to read it first?
+
+Download, read, then run. Replace `main` with a release tag for a pinned version.
+
+```powershell
+irm https://raw.githubusercontent.com/KofTwentyTwo/standards/main/setup/Install-Workstation.ps1 -OutFile Install-Workstation.ps1
+notepad Install-Workstation.ps1
+pwsh -File ./Install-Workstation.ps1 -WhatIf
+```
+
+### After it runs
+
+- Open a new terminal so newly installed tools are on your `PATH`.
+- Sign off every commit with `git commit -s` (or the alias it adds: `git cs`).
+- In each repository, enable the hooks once:
+  `pre-commit install --hook-type pre-commit --hook-type commit-msg`.
 
 ## Set up your IDE
 
