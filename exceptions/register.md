@@ -21,7 +21,8 @@ Open and closed exceptions to the KofTwentyTwo standards. The process is in
   worse: a bypass habit is exactly what branch protection exists to prevent.
 - **Risk:** a defect or malicious change authored or introduced through the maintainer's
   account reaches `main` without a second human looking at it.
-- **Compensating controls:**
+- **Compensating controls** (being put in place during adoption; until a repository
+  passes the conformance checker these are the plan, not yet the state):
   - every change still goes through a pull request; no direct pushes and no bypass
     actors on `protect-main`;
   - an automated AI code review is posted on every pull request, and every finding must
@@ -46,9 +47,11 @@ Open and closed exceptions to the KofTwentyTwo standards. The process is in
   maintainer as an individual developer, which is in progress.
 - **Risk:** users cannot tell a genuine installer from a modified one by its signature,
   and Windows SmartScreen warns on download.
-- **Compensating controls:** every release asset is listed in `SHA256SUMS` and carries a
-  GitHub build-provenance attestation (`K22-REL-04`), so integrity and origin can still
-  be verified with `gh attestation verify`; the verification steps are in each README.
+- **Compensating controls:** once the shared release workflow ships, every release asset
+  is listed in `SHA256SUMS` and carries a GitHub build-provenance attestation
+  (`K22-REL-04`), so integrity and origin can be verified with `gh attestation verify`
+  even without a signature. **Current state:** gclo's existing releases have neither;
+  they gain them when gclo moves to the shared release workflow.
 - **Expires:** when the signing identity is validated and the shared release workflow
   signs Windows binaries; at the latest 2027-04-09.
 - **Owner:** the maintainer.

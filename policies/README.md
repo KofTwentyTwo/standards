@@ -1,5 +1,17 @@
 # How these standards work
 
+> **Status: draft, pre-v1.0.0.** The requirements are written but have not been
+> released. Until the first release (`v1.0.0`):
+>
+> - the automated checks and conformance tooling are still being built, so no
+>   requirement is yet *Enforced* or *Verified* (see [compliance](../compliance/README.md));
+> - no KofTwentyTwo repository claims conformance; adoption is in progress, starting
+>   with this repository, [AppKit](https://github.com/KofTwentyTwo/AppKit), and
+>   [gclo](https://github.com/KofTwentyTwo/gclo);
+> - commitments to people outside the project (vulnerability response and fix times in
+>   the [security program](security-program.md#vulnerability-management)) are targets
+>   that the maintainer works to, and become binding commitments at `v1.0.0`.
+
 This repository is the single source of truth for how KofTwentyTwo builds, secures,
 and ships software. It has three layers, each more specific than the last:
 

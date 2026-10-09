@@ -66,7 +66,8 @@ Dependabot alert ages.
 as vulnerability advisories, and a newly added package name is checked for
 typosquatting and look-alikes of the package that was intended.
 *Why:* malicious packages are published faster than they are caught; most attacks
-rely on a near-miss name. *Verified by:* `pr / dependency-review`; review
+rely on a near-miss name. *Verified by:* `security / sca` (OSV malicious-package
+advisories); review
 ([`K22-AI-31`](../policies/ai-assisted-development.md#quality-of-ai-output) for
 agent-added packages). *Maps to:* OSPS-VM-05.03.
 

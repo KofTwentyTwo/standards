@@ -21,6 +21,8 @@ OSPS-LE-02.02, OSPS-LE-03.01, OSPS-LE-03.02.
 **K22-REPO-02 (MUST)** `README.md` states what the project is, its tier, the standards
 version it conforms to, how to install and use it, how to build it from source
 (toolchain and dependencies included), and links to `SECURITY.md` and `CONTRIBUTING.md`.
+A documentation-only repository (no buildable software, like this one) replaces the
+install, usage, and build sections with a *How to use* section.
 *Why:* the README is the user guide and the build guide. *Verified by:* conformance
 checker (file and required headings); review. *Maps to:* OSPS-DO-01.01, OSPS-DO-07.01.
 
@@ -103,7 +105,7 @@ named `protect-main` that:
 - requires signed commits.
 
 With one maintainer, the required approval count is `0` and the automated review gate
-of [`K22-SDLC-12`](../policies/sdlc.md#review) applies. With two or more maintainers it
+of [`K22-SDLC-12`](../policies/sdlc.md#build) applies. With two or more maintainers it
 is `1`, stale approvals are dismissed on push, and the last pusher cannot approve.
 The ruleset has **no bypass actors**.
 *Why:* every change to `main` is reviewed, tested, attributable, and reversible.
@@ -111,8 +113,11 @@ The ruleset has **no bypass actors**.
 OSPS-AC-03.02, OSPS-QA-03.01, OSPS-QA-07.01 (see exception EX-0001).
 
 **K22-REPO-21 (MUST)** Release tags are protected by a ruleset named
-`protect-release-tags` targeting `refs/tags/v*` that blocks creation by anyone but the
-maintainer, and blocks deletion, update, and force push.
+`protect-release-tags` targeting `refs/tags/v*` that blocks creation, deletion, update,
+and force push, with the **repository admin role as its only bypass actor** so that
+only the maintainer can create a release tag. This is the one place a bypass actor is
+allowed: it lets the maintainer *create* tags, and no rule exists that would let anyone
+move or delete one.
 *Why:* a published version must always point at the same commit. *Verified by:*
 conformance checker. *Maps to:* OSPS-BR-02.01.
 

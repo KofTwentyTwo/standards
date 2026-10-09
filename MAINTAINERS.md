@@ -17,12 +17,12 @@ Security reports go through each repository's private vulnerability reporting
 ## Repositories
 
 The Product-tier repositories: public, publishing releases, and held to every standard
-([`K22-REPO-42`](standards/repository.md#repository-hygiene)). Each states its
-conformance version in its README.
+([`K22-REPO-42`](standards/repository.md#repository-hygiene)). Each will state its
+conformance version in its README once it passes the conformance checker.
 
 | Repository | What it is | Tier | Conformance |
 | --- | --- | --- | --- |
-| [standards](https://github.com/KofTwentyTwo/standards) | These policies, standards, configs, and reusable workflows | Product | v1.0 (this release) |
+| [standards](https://github.com/KofTwentyTwo/standards) | These policies, standards, configs, and reusable workflows | Product | Not yet: rulesets and CI being added |
 | [AppKit](https://github.com/KofTwentyTwo/AppKit) | Shared foundation packages for Windows desktop apps | Product | Adoption in progress |
 | [gclo](https://github.com/KofTwentyTwo/gclo) | Clone and update every repository of a GitHub organization (Windows app and CLI) | Product | Adoption in progress |
 

@@ -4,12 +4,17 @@ KofTwentyTwo's standards are its own, but they are written against public framew
 that anyone can check how they measure up. Each crosswalk maps framework controls to
 `K22-*` requirements.
 
-| Framework | Crosswalk | Target | Result |
+> **Draft.** The crosswalks show which requirement is *meant* to meet each control.
+> They are not a claim that any KofTwentyTwo repository meets them today: the
+> enforcement tooling is still being built and no repository has been verified yet.
+> See [status levels](osps-baseline.md) (Defined → Enforced → Verified).
+
+| Framework | Crosswalk | Target | Current status |
 | --- | --- | --- | --- |
-| OpenSSF OSPS Baseline v2026.08.28 | [osps-baseline.md](osps-baseline.md) | Level 3 | 63/64 met, 1 excepted |
-| NIST SSDF v1.1 (SP 800-218) | [below](#nist-ssdf-v11) | All practices applicable to an open-source maintainer | Covered |
-| SLSA v1.2 | [below](#slsa-v12) | Build L3, Source L2 | Build L3 by the shared release workflow |
-| OpenSSF Scorecard v5 | [below](#openssf-scorecard) | ≥ 8.0 per Product repository | Measured weekly by the Scorecard workflow |
+| OpenSSF OSPS Baseline v2026.08.28 | [osps-baseline.md](osps-baseline.md) | Level 3 | 63/64 Defined, 1 Excepted; none Enforced or Verified yet |
+| NIST SSDF v1.1 (SP 800-218) | [below](#nist-ssdf-v11) | All practices applicable to an open-source maintainer | Defined |
+| SLSA v1.2 | [below](#slsa-v12) | Build L3, Source L2 | Defined; the shared release workflow that delivers Build L3 is not built yet |
+| OpenSSF Scorecard v5 | [below](#openssf-scorecard) | ≥ 8.0 per Product repository | Not yet measured |
 
 ## NIST SSDF v1.1
 
@@ -43,8 +48,8 @@ this crosswalk is updated when it becomes final.
 
 | Track | Level | How |
 | --- | --- | --- |
-| Build | **L3** | Releases are built only by a reusable workflow in `KofTwentyTwo/standards` on GitHub-hosted runners; GitHub artifact attestations sign the provenance, and `builder.id` identifies the reusable workflow (K22-CI-30, K22-REL-04) |
-| Source | **L2** | Version-controlled history with protected branches and tags, verified signed commits, and no history rewrites (K22-REPO-20, K22-REPO-21, K22-SDLC-14, K22-SDLC-16). Source L3's continuous technical-control attestation is not yet produced |
+| Build | **L3** (target) | Releases will be built only by a reusable workflow in `KofTwentyTwo/standards` on GitHub-hosted runners; GitHub artifact attestations will sign the provenance, and `builder.id` will identify the reusable workflow (K22-CI-30, K22-REL-04) |
+| Source | **L2** (target) | Version-controlled history with protected branches and tags, verified signed commits, and no history rewrites (K22-REPO-20, K22-REPO-21, K22-SDLC-14, K22-SDLC-16). Source L3's continuous technical-control attestation is not yet produced |
 
 ## OpenSSF Scorecard
 

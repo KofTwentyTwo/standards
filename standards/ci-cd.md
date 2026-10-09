@@ -14,9 +14,9 @@ requires all of them:
 | --- | --- | --- |
 | `pr / title` | PR title is a valid [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/) header | `pr.yml` |
 | `pr / dco` | Every commit carries a `Signed-off-by` matching its author | `pr.yml` |
-| `pr / dependency-review` | No added dependency with a known vulnerability, a malware advisory, or a license outside the allowlist | `pr.yml` |
+| `pr / dependency-review` | No added dependency with a known vulnerability or a license outside the allowlist | `pr.yml` |
 | `security / secrets` | No secret anywhere in the change or in history | `security.yml` |
-| `security / sca` | No HIGH or CRITICAL vulnerability in the resolved dependency graph | `security.yml` |
+| `security / sca` | No HIGH or CRITICAL vulnerability, and no package flagged as malicious (OSV `MAL-` advisories), in the resolved dependency graph | `security.yml` |
 | `security / workflows` | Workflow files pass zizmor and actionlint | `security.yml` |
 | `codeql / analyze (<language>)` | No CodeQL alert at *high* severity or above | `codeql.yml` |
 | Language checks, e.g. `ci / build-test`, `ci / format` | Zero-warning build, tests, coverage gate, format | language workflow |
@@ -47,7 +47,9 @@ OSPS-AC-04.02.
 **K22-CI-11 (MUST)** Every third-party action is referenced by a full 40-character
 commit SHA with the version in a trailing comment, for example
 `uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1`. Every
-container image is referenced by digest. Dependabot keeps both current.
+container image is referenced by digest. Dependabot keeps the action SHAs current;
+container digests used inside workflows (which Dependabot does not track) are updated
+with each release of this repository, and callers pick them up by updating their pin.
 *Why:* tags are mutable; a hijacked tag is the most common Actions supply-chain attack.
 *Verified by:* zizmor (`unpinned-uses`, `unpinned-images`), conformance checker.
 
