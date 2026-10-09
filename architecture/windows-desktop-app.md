@@ -24,7 +24,7 @@ Windows services are covered in [Variants](#variants).
 
 ## 2. Solution layout
 
-```
+```text
 <App>.slnx
 Directory.Build.props        quality gate, version prefix, package metadata
 Directory.Packages.props     every package version (central package management)

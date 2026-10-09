@@ -103,4 +103,3 @@ Open and closed exceptions to the KofTwentyTwo standards. The process is in
 - **Expires:** when the shared reusable release workflow ships and gclo calls it; at
   the latest 2027-04-09.
 - **Owner:** the maintainer.
-

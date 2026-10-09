@@ -111,7 +111,7 @@ IntelliJ plugin generates both comment forms.
 (Python, Rust, Swift); review for the rest.
 
 **K22-CODE-10 (SHOULD)** Comments inside a type or method body are flower boxes: a line
-of `/`, the text between `// ` and ` //` padded so every line is the same length, and a
+of `/`, the text between `//` and `//` (one space inside each) padded so every line is the same length, and a
 closing line of `/`.
 
 ```java
