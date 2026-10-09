@@ -479,8 +479,9 @@ function Set-GitConfiguration
    Set-GitGlobal -Key 'tag.gpgsign' -Value 'true'
    Set-GitGlobal -Key 'init.defaultBranch' -Value 'main'
    Set-GitGlobal -Key 'fetch.prune' -Value 'true'
-   Set-GitGlobal -Key 'pull.rebase' -Value 'true'
-   Set-GitGlobal -Key 'core.autocrlf' -Value 'false'
+   # Deliberately NOT set globally: core.autocrlf and pull.rebase. They change behavior in
+   # every repository on the machine, including ones that are not KofTwentyTwo's; line
+   # endings are governed per repository by .gitattributes (K22-REPO-03).
    Set-GitGlobal -Key 'alias.cs' -Value 'commit -s'
    if ($IsWindows)
    {
