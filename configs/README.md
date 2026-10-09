@@ -37,6 +37,7 @@ with exact import steps for the IDE and the command line.
 | Folder | What |
 | --- | --- |
 | [`security/`](security) | gitleaks, Trivy, and zizmor configurations, and how to run each locally |
+| [`markdown/`](markdown) | markdownlint-cli2 config: all default rules except line length (none, per K22-CODE-08) |
 | [`pre-commit/`](pre-commit) | The pre-commit hook set: hygiene, secrets, Conventional Commit messages, DCO sign-off, workflow linting |
 
 Files adopted from Kingsrook's QQQ project keep their original copyright and Apache-2.0
