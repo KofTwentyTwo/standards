@@ -1,0 +1,34 @@
+# CodeQL for a KofTwentyTwo repository (K22-CI-22).
+# Copy to .github/workflows/codeql.yml. Replace {{STANDARDS_SHA}} as described in
+# pr-gates.yml, list every CodeQL language in the repository (always include
+# "actions" so the workflows themselves are analyzed), and for compiled languages
+# give the same build command CI uses.
+name: codeql
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "29 6 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  codeql:
+    uses: KofTwentyTwo/standards/.github/workflows/codeql.yml@{{STANDARDS_SHA}} # {{STANDARDS_VERSION}}
+    permissions:
+      contents: read
+      security-events: write
+    with:
+      languages: '{{CODEQL_LANGUAGES}}' # e.g. '["csharp", "actions"]'
+      # Compiled languages:
+      # build-mode: manual
+      # build-command: dotnet build MyApp.slnx -p:Platform=x64
+      # runs-on: windows-latest
+      # setup-dotnet: true

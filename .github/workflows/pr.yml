@@ -1,0 +1,118 @@
+# Pull request gates (K22-CI-01): Conventional Commit title, DCO sign-off on every
+# commit, and review of added dependencies. Called from a repository workflow as:
+#
+#   jobs:
+#     pr:
+#       if: github.event_name == 'pull_request'
+#       uses: KofTwentyTwo/standards/.github/workflows/pr.yml@<sha> # vX.Y.Z
+#       permissions:
+#         contents: read
+#         pull-requests: read
+#
+# which produces the required status contexts `pr / title`, `pr / dco`, and
+# `pr / dependency-review`. On events other than pull_request every job is skipped,
+# which GitHub treats as passing. Dependency review gates known vulnerabilities and
+# licenses of added dependencies; malicious packages are caught by `security / sca`.
+name: pr
+
+on:
+  workflow_call:
+    inputs:
+      allow-licenses:
+        description: >-
+          Comma-separated SPDX identifiers that added dependencies may use. The
+          default is the permissive allowlist from standards/dependencies.md.
+        type: string
+        default: >-
+          MIT, MIT-0, Apache-2.0, BSD-2-Clause, BSD-3-Clause, 0BSD, ISC, Zlib,
+          BSL-1.0, Unlicense, CC0-1.0, MS-PL, Unicode-3.0, BlueOak-1.0.0
+      fail-on-severity:
+        description: Lowest advisory severity that fails dependency review (low, moderate, high, critical).
+        type: string
+        default: low
+
+permissions: {}
+
+jobs:
+  title:
+    name: title
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: PR title is a Conventional Commit header
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          # The title becomes the squash commit subject on main (K22-REPO-22), so it
+          # must be a valid Conventional Commits 1.0 header of at most 100 characters.
+          pattern='^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([A-Za-z0-9][A-Za-z0-9._/-]*\))?!?: [^[:space:]].*[^.[:space:]]$'
+          if [[ ${#PR_TITLE} -gt 100 ]]; then
+            echo "::error title=PR title too long::${#PR_TITLE} characters; the limit is 100."
+            exit 1
+          fi
+          if [[ ! "$PR_TITLE" =~ $pattern ]]; then
+            echo "::error title=PR title is not a Conventional Commit::Expected '<type>(<scope>)!: <description>' with type one of build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test, and no trailing period."
+            printf 'Title was: %s\n' "$PR_TITLE"
+            exit 1
+          fi
+          echo "PR title OK"
+
+  dco:
+    name: dco
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read # list the pull request commits for the DCO check
+    steps:
+      - name: Every commit is signed off by its author
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # Developer Certificate of Origin (https://developercertificate.org/):
+          # each commit needs "Signed-off-by: Name <email>" whose email matches the
+          # commit author (git commit -s). Bot accounts (login ending in [bot]) are
+          # exempt; Dependabot signs off anyway.
+          set -euo pipefail
+          failed=0
+          while IFS=$'\t' read -r sha email login message_b64; do
+            if [[ "$login" == *"[bot]" ]]; then
+              echo "skip ${sha:0:9} (bot: $login)"
+              continue
+            fi
+            message=$(printf '%s' "$message_b64" | base64 --decode)
+            wanted=$(printf '%s' "$email" | tr '[:upper:]' '[:lower:]')
+            if printf '%s\n' "$message" | grep -i '^Signed-off-by: ' | grep -o '<[^>]*>' | tr -d '<>' | tr '[:upper:]' '[:lower:]' | grep -qxF "$wanted"; then
+              echo "ok   ${sha:0:9} signed off by $email"
+            else
+              echo "::error title=Missing DCO sign-off::Commit ${sha:0:9} has no 'Signed-off-by:' line for its author <$email>. Amend with 'git commit --amend -s' or rebase with 'git rebase --signoff'."
+              failed=1
+            fi
+          done < <(gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/commits" \
+                     --jq '.[] | [.sha, .commit.author.email, (.author.login // ""), (.commit.message | @base64)] | @tsv')
+          exit "$failed"
+
+  dependency-review:
+    name: dependency-review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Review added and changed dependencies
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: ${{ inputs.fail-on-severity }}
+          # Development dependencies run in CI and on developer machines, so a
+          # malicious or vulnerable one is just as dangerous as a runtime one.
+          fail-on-scopes: runtime, development, unknown
+          allow-licenses: ${{ inputs.allow-licenses }}
+          license-check: true
+          vulnerability-check: true
+          comment-summary-in-pr: never

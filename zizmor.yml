@@ -1,0 +1,9 @@
+# zizmor configuration for this repository (configs/security/zizmor.yml is the
+# template for consuming repositories).
+rules:
+  self-repository:
+    # ci.yml calls this repository's reusable workflows by local path so changes
+    # are tested before release. GitHub's newer `$/...` self-repository syntax is
+    # not yet understood by actionlint 1.7.12, which is also a required gate.
+    ignore:
+      - ci.yml
