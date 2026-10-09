@@ -8,9 +8,9 @@ Standards: [Java profile](../../standards/coding/java.md),
 | File | What it is | Origin |
 | --- | --- | --- |
 | [`Kingsrook_Code_Style.xml`](Kingsrook_Code_Style.xml) | IDE code-style scheme: Java, JavaScript, TypeScript, JSON, XML, SQL, Shell, CSS, HTML, Groovy, VTL | Kingsrook (Apache-2.0), unmodified |
-| [`project/.idea/codeStyles/`](project/.idea/codeStyles) | The same scheme as a per-project style, committed so the whole team gets it automatically | Derived from the above |
-| [`project/.idea/checkstyle-idea.xml`](project/.idea/checkstyle-idea.xml) | CheckStyle-IDEA plugin settings pointing at the published KofTwentyTwo checkstyle config | KofTwentyTwo |
-| [`project/.idea/copyright/`](project/.idea/copyright) + [`KofTwentyTwo_Copyright_Profile.xml`](KofTwentyTwo_Copyright_Profile.xml) | Copyright profile that inserts the KofTwentyTwo SPDX header (K22-CODE-24) | KofTwentyTwo |
+| `project/.idea/codeStyles/` (not yet published) | The same scheme as a per-project style, committed so the whole team gets it automatically | Derived from the above |
+| `project/.idea/checkstyle-idea.xml` (not yet published) | CheckStyle-IDEA plugin settings pointing at the published KofTwentyTwo checkstyle config | KofTwentyTwo |
+| `project/.idea/copyright/` (not yet published) + [`KofTwentyTwo_Copyright_Profile.xml`](KofTwentyTwo_Copyright_Profile.xml) | Copyright profile that inserts the KofTwentyTwo SPDX header (K22-CODE-24) | KofTwentyTwo |
 | [`Kingsrook_Copyright_Profile.xml`](Kingsrook_Copyright_Profile.xml) | QQQ's own Apache-2.0 header, for QQQ-derived code only | Kingsrook, unmodified |
 | [`live-templates/`](live-templates) | Kingsrook Java and SQL live templates (method, getter/setter/fluent setter, JUnit lifecycle, Liquibase changesets) | Kingsrook, unmodified |
 

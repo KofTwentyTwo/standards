@@ -1,0 +1,9 @@
+# lychee configuration for the docs gate (ci.yml "Link check (internal links)").
+#
+# Templates link to files that exist in the repository that adopts them, not
+# here: the ADR template's "Superseded by" placeholder and the LICENSE every
+# repository ships at its root.
+exclude = [
+  'NNNN-title\.md$',
+  'templates/repo/LICENSE$',
+]
