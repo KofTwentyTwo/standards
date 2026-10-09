@@ -78,6 +78,32 @@ protected `release` environment.
 *Why:* no long-lived publishing credential to steal. *Verified by:*
 [`K22-CI-16`](ci-cd.md#workflow-security).
 
+### .NET packages
+
+NuGet packages are released by the shared
+[`release-nuget.yml`](../.github/workflows/release-nuget.yml) workflow, called from the
+repository's tag workflow ([template](../templates/workflows/release-nuget.yml)). It
+builds, tests, packs, writes a CycloneDX SBOM per package from its lock file, attests
+provenance and SBOMs, and publishes the GitHub release. The template's `publish` job
+then pushes to nuget.org.
+
+nuget.org trusted publishing compares the OIDC token's `repository` and
+`job_workflow_ref` claims with the policy. `job_workflow_ref` names the workflow file
+that *defines the job*, so the push cannot run inside the reusable workflow (that file
+lives in `KofTwentyTwo/standards`); it runs in the calling repository's own
+`release.yml`, after verifying the packages' attestations. The policy is an owner
+action, made once per repository on nuget.org (profile → Trusted Publishing):
+
+| Field | Value |
+| --- | --- |
+| Repository Owner | `KofTwentyTwo` |
+| Repository | the repository name, e.g. `AppKit` |
+| Workflow File | `release.yml` (the calling workflow's file name) |
+| Environment | `release` |
+
+Then set the repository variable `NUGET_USER` to the nuget.org profile name. Until the
+variable is set, the `publish` job is skipped and the release stays GitHub-only.
+
 ## Release process
 
 **K22-REL-12 (MUST)** Each MINOR or MAJOR release has a release checklist (an issue made

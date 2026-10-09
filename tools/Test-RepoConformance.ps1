@@ -317,6 +317,31 @@ function Get-MissingLocks
 }
 
 # Any of these makes a repository buildable software rather than documentation (K22-REPO-02).
+# True when workflow text calls a KofTwentyTwo/standards reusable release workflow
+# pinned to a full commit SHA (K22-CI-30, K22-CI-11), or calls it by local path inside
+# the standards repository itself.
+function Test-StandardsReleaseCall
+{
+    param([string] $Text)
+    return [bool] ($Text -match '(?m)^\s*(?:-\s+)?uses:\s*["'']?(KofTwentyTwo/standards/\.github/workflows/release-[A-Za-z0-9_.-]+\.ya?ml@[0-9a-f]{40}|\./\.github/workflows/release-[A-Za-z0-9_.-]+\.ya?ml)')
+}
+
+# Status contexts the protect-main ruleset must require for a repository with these
+# files (K22-CI-01): the shared gates, plus the .NET gates when there is a solution
+# or project file.
+function Get-RequiredContexts
+{
+    param([string[]] $Paths)
+    $contexts = [System.Collections.Generic.List[string]]::new()
+    foreach ($context in $script:RequiredContexts) { $contexts.Add($context) }
+    if (@($Paths | Where-Object { $_ -match '(^|/)[^/]+\.(slnx?|csproj)$' }).Count -gt 0)
+    {
+        $contexts.Add('ci / build-test')
+        $contexts.Add('ci / format')
+    }
+    return , $contexts.ToArray()
+}
+
 $script:BuildManifestPattern = '(^|/)([^/]+\.(slnx?|csproj|fsproj|vbproj)|package\.json|pyproject\.toml|Cargo\.toml|go\.mod|pom\.xml|build\.gradle(\.kts)?|Package\.swift)$'
 
 $script:BinaryPattern = '\.(exe|dll|so|dylib|a|lib|pdb|o|obj|class|jar|war|ear|pyc|nupkg|snupkg|msi|msix|appx|appxbundle|zip|7z|rar|tar|gz|tgz|bz2|xz|dmg|pkg|deb|rpm|apk|ipa|wasm)$'
@@ -396,6 +421,17 @@ jobs:
     Assert (@(Get-MissingLocks @('src/a/a.csproj', 'src/a/packages.lock.json')).Count -eq 0) 'locks: nuget ok'
     Assert (@(Get-MissingLocks @('samples/x/package.json')).Count -eq 0) 'locks: samples ignored'
     Assert (@(Get-MissingLocks @('Cargo.toml', 'Cargo.lock', 'go.mod')) -contains 'Go') 'locks: go'
+
+    $sha = '0123456789abcdef0123456789abcdef01234567'
+    Assert (Test-StandardsReleaseCall "jobs:`n  release:`n    uses: KofTwentyTwo/standards/.github/workflows/release-nuget.yml@$sha # v1.0.0") 'release call: pinned'
+    Assert (-not (Test-StandardsReleaseCall "    uses: KofTwentyTwo/standards/.github/workflows/release-nuget.yml@main")) 'release call: branch ref'
+    Assert (-not (Test-StandardsReleaseCall "    uses: KofTwentyTwo/standards/.github/workflows/dotnet.yml@$sha")) 'release call: not a release workflow'
+    Assert (-not (Test-StandardsReleaseCall "    uses: Someone/standards/.github/workflows/release-nuget.yml@$sha")) 'release call: other owner'
+    Assert (Test-StandardsReleaseCall "    uses: ./.github/workflows/release-nuget.yml") 'release call: local in standards'
+    Assert ((Get-RequiredContexts @('AppKit.slnx', 'README.md')) -contains 'ci / build-test') 'contexts: dotnet build-test'
+    Assert ((Get-RequiredContexts @('src/a/a.csproj')) -contains 'ci / format') 'contexts: dotnet format'
+    Assert (-not ((Get-RequiredContexts @('README.md')) -contains 'ci / build-test')) 'contexts: docs repo'
+    Assert ((Get-RequiredContexts @('README.md')) -contains 'security / sca') 'contexts: shared'
 
     Assert ('src/App/App.csproj' -match $script:BuildManifestPattern) 'manifest: csproj'
     Assert ('AppKit.slnx' -match $script:BuildManifestPattern) 'manifest: slnx'
@@ -736,8 +772,12 @@ else
 
     # K22-CI-30: release only through the standards' reusable release workflow.
     if ($releaseFlows.Count -eq 0) { Add-Result 'K22-CI-30' 'N/A' 'no tag-triggered release workflow' }
-    elseif (Test-Calls 'release[^/]*') { Add-Result 'K22-CI-30' 'PASS' 'releases through a KofTwentyTwo/standards reusable workflow' }
-    else { Add-Result 'K22-CI-30' 'FAIL' ('release workflow builds in the calling repository, not through a standards reusable workflow (no SLSA Build L3): ' + ($releaseFlows -join ', ')) }
+    else
+    {
+        $direct = @($releaseFlows | Where-Object { -not (Test-StandardsReleaseCall $workflows[$_]) })
+        if ($direct.Count -eq 0) { Add-Result 'K22-CI-30' 'PASS' 'releases through a SHA-pinned KofTwentyTwo/standards release-*.yml reusable workflow' }
+        else { Add-Result 'K22-CI-30' 'FAIL' ('tag workflow does not call a SHA-pinned KofTwentyTwo/standards release-*.yml (no SLSA Build L3): ' + ($direct -join ', ')) }
+    }
 }
 
 Add-Result 'K22-CI-02' 'REVIEW' 'tests run on every PR and push: confirm in the language workflow'
@@ -816,7 +856,7 @@ else
 
         # K22-CI-01: required contexts.
         $contexts = if ($rules.ContainsKey('required_status_checks')) { @($rules['required_status_checks'].parameters.required_status_checks | ForEach-Object context) } else { @() }
-        $missingContexts = @($script:RequiredContexts | Where-Object { $contexts -notcontains $_ })
+        $missingContexts = @((Get-RequiredContexts $script:Paths) | Where-Object { $contexts -notcontains $_ })
         foreach ($prefix in $script:RequiredContextPrefixes) { if (-not ($contexts | Where-Object { $_.StartsWith($prefix) })) { $missingContexts += "$prefix (...)" } }
         if ($missingContexts) { Add-Result 'K22-CI-01' 'FAIL' ('protect-main does not require: ' + ($missingContexts -join ', ') + $(if ($contexts) { " (requires: $($contexts -join ', '))" } else { '' })) }
         else { Add-Result 'K22-CI-01' 'PASS' "requires $($contexts.Count) checks including every standard context" }

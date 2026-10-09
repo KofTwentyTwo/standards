@@ -1,0 +1,365 @@
+# Release of NuGet packages (K22-CI-30, K22-CI-31, K22-REL-01..07). Called from the
+# calling repository's tag workflow; see templates/workflows/release-nuget.yml:
+#
+#   on:
+#     push:
+#       tags: ['v*']
+#   jobs:
+#     release:
+#       uses: KofTwentyTwo/standards/.github/workflows/release-nuget.yml@<sha> # vX.Y.Z
+#       permissions:
+#         contents: write      # create the GitHub release
+#         id-token: write      # sign attestations (Sigstore)
+#         attestations: write  # store attestations
+#       with:
+#         solution: MySolution.slnx
+#         coverage-packages: My.Library
+#         test-projects: tests/My.Library.Tests
+#     publish:                 # nuget.org push: must live in the CALLER's workflow file
+#       needs: release
+#       ...
+#
+# What this workflow does, in order:
+#   build    (Windows, read-only): validate the tag, locked restore, Release build with
+#            warnings as errors, tests and coverage gate, dotnet pack with the tag version.
+#   sbom     (Linux, per package): CycloneDX 1.6 SBOM from the project's lock file
+#            (Syft), attested against its package.
+#   attest   (Linux): SHA256SUMS over every asset, then SLSA build provenance for all
+#            of them. Because the build runs here, in KofTwentyTwo/standards, the
+#            provenance names this reusable workflow as the builder (SLSA Build L3).
+#   release  (Linux): draft GitHub release with generated notes and every asset, then
+#            publish (releases are immutable once published).
+#
+# Publishing to nuget.org is deliberately NOT done here. nuget.org trusted publishing
+# matches the OIDC token's `repository` AND `job_workflow_ref` claims against the
+# package's own repository, so the push must run in a job defined in the calling
+# repository's workflow file (see the template). That job downloads the `packages`
+# artifact, verifies its attestation was signed by this workflow, then pushes.
+name: release-nuget
+
+on:
+  workflow_call:
+    inputs:
+      solution:
+        description: Solution (.slnx or .sln) to build and pack.
+        type: string
+        required: true
+      platform:
+        description: Solution platform passed as -p:Platform.
+        type: string
+        default: x64
+      runs-on:
+        description: Runner for the build job (Windows for WinUI/WPF solutions).
+        type: string
+        default: windows-latest
+      coverage-packages:
+        description: Comma-separated coverage packages that must meet coverage-minimum. Empty disables the gate.
+        type: string
+        default: ""
+      coverage-minimum:
+        description: Minimum line coverage, in percent.
+        type: number
+        default: 100
+      test-projects:
+        description: Newline-separated test projects to run with coverage before packing.
+        type: string
+        default: ""
+    outputs:
+      version:
+        description: The released version (tag without the leading v).
+        value: ${{ jobs.build.outputs.version }}
+      prerelease:
+        description: '"true" when the version has a prerelease suffix.'
+        value: ${{ jobs.build.outputs.prerelease }}
+
+permissions: {}
+
+jobs:
+  build:
+    name: build
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+      packages: ${{ steps.packages.outputs.packages }}
+    env:
+      K22_SOLUTION: ${{ inputs.solution }}
+      K22_PLATFORM: ${{ inputs.platform }}
+      TEST_PROJECTS: ${{ inputs.test-projects }}
+      COVERAGE_PACKAGES: ${{ inputs.coverage-packages }}
+      COVERAGE_MINIMUM: ${{ inputs.coverage-minimum }}
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Strict SemVer 2.0 tag; build metadata ('+...') is rejected (K22-REL-01).
+      - name: Validate tag and derive version
+        id: version
+        shell: pwsh
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if ($env:REF_TYPE -ne 'tag')
+          {
+             Write-Output "::error::Releases run only for tags; got $env:REF_TYPE '$env:REF_NAME'."
+             exit 1
+          }
+          $semver = '^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*)?$'
+          if ($env:REF_NAME -cnotmatch $semver)
+          {
+             Write-Output "::error::Tag '$env:REF_NAME' is not vMAJOR.MINOR.PATCH with an optional prerelease suffix."
+             exit 1
+          }
+          $version = $env:REF_NAME.Substring(1)
+          $prerelease = $version.Contains('-').ToString().ToLowerInvariant()
+          Write-Output "Version $version, prerelease $prerelease"
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "prerelease=$prerelease" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      # No caches anywhere in this workflow (K22-CI-15): a cache written by a pull
+      # request run must never reach a release.
+      - name: Restore (locked)
+        shell: pwsh
+        run: dotnet restore $env:K22_SOLUTION "-p:Platform=$env:K22_PLATFORM" --locked-mode
+
+      - name: Build (Release, warnings as errors)
+        shell: pwsh
+        env:
+          K22_VERSION: ${{ steps.version.outputs.version }}
+        run: dotnet build $env:K22_SOLUTION -c Release "-p:Platform=$env:K22_PLATFORM" "-p:Version=$env:K22_VERSION" -warnaserror --no-restore
+
+      - name: Test with coverage
+        if: inputs.test-projects != ''
+        shell: pwsh
+        run: |
+          $settings = @()
+          if (Test-Path -LiteralPath coverage.runsettings) { $settings = @('--settings', 'coverage.runsettings') }
+          $projects = $env:TEST_PROJECTS -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+          foreach ($project in $projects)
+          {
+             dotnet test $project -c Release --no-build @settings --collect:"XPlat Code Coverage" --results-directory TestResults
+             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      - name: Coverage gate
+        if: inputs.coverage-packages != ''
+        shell: pwsh
+        run: |
+          $files = @(Get-ChildItem -Path TestResults -Recurse -Filter coverage.cobertura.xml -ErrorAction SilentlyContinue)
+          if ($files.Count -eq 0)
+          {
+             Write-Output '::error::No coverage.cobertura.xml under TestResults.'
+             exit 1
+          }
+          $reports = foreach ($file in $files) { [xml] (Get-Content -LiteralPath $file.FullName -Raw) }
+          $required = [double] $env:COVERAGE_MINIMUM / 100
+          $failed = $false
+          foreach ($name in ($env:COVERAGE_PACKAGES -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ }))
+          {
+             $rates = foreach ($report in $reports)
+             {
+                $package = @($report.coverage.packages.package) | Where-Object { $_.name -eq $name }
+                if ($package) { [double]::Parse($package.'line-rate', [Globalization.CultureInfo]::InvariantCulture) }
+             }
+             if (-not $rates)
+             {
+                Write-Output "::error::Package '$name' was not found in any coverage report."
+                $failed = $true
+                continue
+             }
+             $best = ($rates | Measure-Object -Maximum).Maximum
+             Write-Output ('{0} line coverage: {1}% (required {2}%)' -f $name, [math]::Round($best * 100, 2), $env:COVERAGE_MINIMUM)
+             if ($best -lt $required) { $failed = $true }
+          }
+          if ($failed) { exit 1 }
+
+      - name: Pack
+        shell: pwsh
+        env:
+          K22_VERSION: ${{ steps.version.outputs.version }}
+        run: dotnet pack $env:K22_SOLUTION -c Release "-p:Platform=$env:K22_PLATFORM" "-p:Version=$env:K22_VERSION" --no-build -o artifacts/nuget
+
+      # Maps each package to the project folder whose packages.lock.json describes its
+      # dependencies, for the SBOM job. Package ids come from the produced file names.
+      - name: List packages
+        id: packages
+        shell: pwsh
+        env:
+          K22_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $suffix = ".$env:K22_VERSION.nupkg"
+          $entries = foreach ($file in Get-ChildItem -Path artifacts/nuget -Filter '*.nupkg')
+          {
+             if (-not $file.Name.EndsWith($suffix, [StringComparison]::OrdinalIgnoreCase)) { continue }
+             $id = $file.Name.Substring(0, $file.Name.Length - $suffix.Length)
+             $project = Get-ChildItem -Path . -Recurse -Filter "$id.csproj" -File | Select-Object -First 1
+             if (-not $project)
+             {
+                Write-Output "::error::No project file named $id.csproj for package $($file.Name)."
+                exit 1
+             }
+             $directory = [IO.Path]::GetRelativePath((Get-Location).Path, $project.DirectoryName) -replace '\\', '/'
+             if (-not (Test-Path -LiteralPath (Join-Path $project.DirectoryName 'packages.lock.json')))
+             {
+                Write-Output "::error::$directory has no packages.lock.json (K22-REPO-09); the SBOM needs it."
+                exit 1
+             }
+             [ordered]@{ id = $id; package = $file.Name; directory = $directory }
+          }
+          $json = ConvertTo-Json -InputObject @($entries) -Compress
+          Write-Output "Packages: $json"
+          "packages=$json" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Upload packages
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: packages
+          path: artifacts/nuget/*
+          if-no-files-found: error
+
+  sbom:
+    name: sbom (${{ matrix.package.id }})
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write      # sign the SBOM attestation
+      attestations: write  # store it
+    strategy:
+      fail-fast: true
+      matrix:
+        package: ${{ fromJSON(needs.build.outputs.packages) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download packages
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: packages
+          path: artifacts/nuget
+
+      - name: Prepare SBOM folder
+        run: mkdir -p artifacts/sbom
+
+      # CycloneDX 1.6 from the project's packages.lock.json: the exact resolved graph
+      # the package was built with (K22-REL-06).
+      - name: Generate SBOM (Syft)
+        uses: docker://ghcr.io/anchore/syft:v1.54.1@sha256:3eb5379ba7b409c3f4069b686110527af0c47df993fa5c10d13e7cf34f49b1aa
+        with:
+          args: >-
+            scan dir:/github/workspace/${{ matrix.package.directory }}
+            --source-name ${{ matrix.package.id }}
+            --source-version ${{ needs.build.outputs.version }}
+            --output cyclonedx-json@1.6=/github/workspace/artifacts/sbom/${{ matrix.package.id }}.${{ needs.build.outputs.version }}.cdx.json
+            --quiet
+
+      - name: Attest SBOM
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        with:
+          subject-path: artifacts/nuget/${{ matrix.package.package }}
+          sbom-path: artifacts/sbom/${{ matrix.package.id }}.${{ needs.build.outputs.version }}.cdx.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sbom-${{ matrix.package.id }}
+          path: artifacts/sbom/*.cdx.json
+          if-no-files-found: error
+
+  attest:
+    name: attest
+    needs: [build, sbom]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write      # sign the provenance attestation
+      attestations: write  # store it
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: packages
+          path: release
+
+      - name: Download SBOMs
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: sbom-*
+          path: release
+          merge-multiple: true
+
+      - name: Checksums
+        working-directory: release
+        run: |
+          find . -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort | xargs sha256sum > "$RUNNER_TEMP/SHA256SUMS"
+          mv "$RUNNER_TEMP/SHA256SUMS" SHA256SUMS
+          cat SHA256SUMS
+
+      # Anyone can verify an asset with:
+      #   gh attestation verify <file> --repo <owner/repo> --signer-repo KofTwentyTwo/standards
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: release/*
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-assets
+          path: release/*
+          if-no-files-found: error
+
+  release:
+    name: release
+    needs: [build, attest]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write # create and publish the GitHub release
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-assets
+          path: release
+
+      # Releases are immutable once published (K22-REL-07): everything lands on a draft
+      # first, and publishing is the last step.
+      - name: Create draft release with assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          K22_VERSION: ${{ needs.build.outputs.version }}
+          PRERELEASE: ${{ needs.build.outputs.prerelease }}
+          REPOSITORY_NAME: ${{ github.event.repository.name }}
+        run: |
+          prerelease_flag=()
+          if [[ "$PRERELEASE" == "true" ]]; then prerelease_flag=(--prerelease); fi
+          gh release create "$TAG" --draft --verify-tag --generate-notes \
+            --title "$REPOSITORY_NAME $K22_VERSION" "${prerelease_flag[@]}" release/*
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: gh release edit "$TAG" --draft=false
