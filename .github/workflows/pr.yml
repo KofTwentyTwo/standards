@@ -30,6 +30,14 @@ on:
         description: Lowest advisory severity that fails dependency review (low, moderate, high, critical).
         type: string
         default: low
+      allow-dependencies-licenses:
+        description: >-
+          Comma-separated package URLs (e.g. pkg:nuget/LibGit2Sharp) whose license the
+          dependency graph cannot read because the package declares a license FILE
+          instead of an SPDX expression. They are exempt from the license check only;
+          each one needs an entry in exceptions/register.md.
+        type: string
+        default: ""
 
 permissions: {}
 
@@ -47,13 +55,13 @@ jobs:
         run: |
           # The title becomes the squash commit subject on main (K22-REPO-22), so it
           # must be a valid Conventional Commits 1.0 header of at most 100 characters.
-          pattern='^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([A-Za-z0-9][A-Za-z0-9._/-]*\))?!?: [^[:space:]].*[^.[:space:]]$'
+          pattern='^(build|chore|ci|docs|feat|fix|perf|refactor|revert|security|style|test)(\([A-Za-z0-9][A-Za-z0-9._/-]*\))?!?: [^[:space:]].*[^.[:space:]]$'
           if [[ ${#PR_TITLE} -gt 100 ]]; then
             echo "::error title=PR title too long::${#PR_TITLE} characters; the limit is 100."
             exit 1
           fi
           if [[ ! "$PR_TITLE" =~ $pattern ]]; then
-            echo "::error title=PR title is not a Conventional Commit::Expected '<type>(<scope>)!: <description>' with type one of build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test, and no trailing period."
+            echo "::error title=PR title is not a Conventional Commit::Expected '<type>(<scope>)!: <description>' with type one of build, chore, ci, docs, feat, fix, perf, refactor, revert, security, style, test, and no trailing period."
             printf 'Title was: %s\n' "$PR_TITLE"
             exit 1
           fi
@@ -77,7 +85,9 @@ jobs:
           # Developer Certificate of Origin (https://developercertificate.org/):
           # each commit needs "Signed-off-by: Name <email>" whose email matches the
           # commit author (git commit -s). Bot accounts (login ending in [bot]) are
-          # exempt; Dependabot signs off anyway.
+          # exempt; Dependabot signs off anyway. An author with no GitHub login (an
+          # email the account does not list) is written as "-": `read` with a tab
+          # IFS collapses adjacent tabs, so an empty field would shift the columns.
           set -euo pipefail
           failed=0
           while IFS=$'\t' read -r sha email login message_b64; do
@@ -94,7 +104,7 @@ jobs:
               failed=1
             fi
           done < <(gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/commits" \
-                     --jq '.[] | [.sha, .commit.author.email, (.author.login // ""), (.commit.message | @base64)] | @tsv')
+                     --jq '.[] | [.sha, .commit.author.email, (.author.login // "-"), (.commit.message | @base64)] | @tsv')
           exit "$failed"
 
   dependency-review:
@@ -113,6 +123,7 @@ jobs:
           # malicious or vulnerable one is just as dangerous as a runtime one.
           fail-on-scopes: runtime, development, unknown
           allow-licenses: ${{ inputs.allow-licenses }}
+          allow-dependencies-licenses: ${{ inputs.allow-dependencies-licenses }}
           license-check: true
           vulnerability-check: true
           comment-summary-in-pr: never

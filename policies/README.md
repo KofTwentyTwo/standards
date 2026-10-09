@@ -45,7 +45,7 @@ bold capitals.
 Every requirement has a stable ID so it can be cited from code, CI output, PRs, and the
 compliance crosswalks:
 
-```
+```text
 K22-<AREA>-<NN>
 ```
 

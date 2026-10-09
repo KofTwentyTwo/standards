@@ -1,0 +1,12 @@
+# markdownlint-cli2 configuration for the standards repository.
+#
+# K22-CODE-08 sets no line-length limit for prose, and the templates use
+# <details> blocks and emphasised sub-headings deliberately.
+config:
+  default: true
+  MD013: false   # line length: wrapped prose is a style choice, not a rule
+  MD033: false   # inline HTML: release-checklist uses <details>/<summary>
+  MD036: false   # emphasis as heading: the exceptions register's summary lines
+  MD041: false   # first-line heading: PULL_REQUEST_TEMPLATE starts at ##
+ignores:
+  - node_modules

@@ -67,10 +67,14 @@ jobs:
         run: |
           set -euo pipefail
           archive="lychee-x86_64-unknown-linux-gnu.tar.gz"
-          curl -fsSLO "https://github.com/lycheeverse/lychee/releases/download/lychee-v${LYCHEE_VERSION}/${archive}"
-          echo "${LYCHEE_SHA256}  ${archive}" | sha256sum --check --strict
-          tar -xzf "${archive}"
-          ./lychee --offline --include-fragments --no-progress './**/*.md'
+          tool="${RUNNER_TEMP}/lychee"
+          mkdir -p "${tool}"
+          curl -fsSL -o "${tool}/${archive}" "https://github.com/lycheeverse/lychee/releases/download/lychee-v${LYCHEE_VERSION}/${archive}"
+          (cd "${tool}" && echo "${LYCHEE_SHA256}  ${archive}" | sha256sum --check --strict)
+          # The archive unpacks into a versioned directory with its own README and
+          # docs; it is extracted outside the checkout so they are not link-checked.
+          tar -xzf "${tool}/${archive}" -C "${tool}"
+          "${tool}/lychee-x86_64-unknown-linux-gnu/lychee" --offline --include-fragments --no-progress './**/*.md'
 
   conformance:
     name: conformance

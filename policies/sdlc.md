@@ -70,7 +70,7 @@ still-supported older line.
 [Conventional Commits 1.0](https://www.conventionalcommits.org/en/v1.0.0/):
 `<type>(<optional scope>): <description>`, with `!` or a `BREAKING CHANGE:` footer for
 incompatible changes. Allowed types: `feat`, `fix`, `perf`, `refactor`, `docs`, `test`,
-`build`, `ci`, `chore`, `revert`, `security`.
+`build`, `ci`, `chore`, `revert`, `style`, `security`.
 *Why:* versions and release notes are derived from history, so history must be
 machine-readable. *Verified by:* `pr / title` check; commit-msg hook.
 

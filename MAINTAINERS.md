@@ -24,7 +24,7 @@ conformance version in its README once it passes the conformance checker.
 | --- | --- | --- | --- |
 | [standards](https://github.com/KofTwentyTwo/standards) | These policies, standards, configs, and reusable workflows | Product | Not yet: rulesets and CI being added |
 | [AppKit](https://github.com/KofTwentyTwo/AppKit) | Shared foundation packages for Windows desktop apps | Product | Adoption in progress |
-| [gclo](https://github.com/KofTwentyTwo/gclo) | Clone and update every repository of a GitHub organization (Windows app and CLI) | Product | Adoption in progress |
+| [gclo](https://github.com/KofTwentyTwo/gclo) | Clone and update every repository of a GitHub organization (Windows app and CLI) | Product | Adoption in progress: standards gates, governance files, and the Kingsrook layout are in review (gclo #62); settings and exceptions pending |
 
 ### Awaiting classification
 
