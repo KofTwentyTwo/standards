@@ -1,0 +1,612 @@
+# Release of a Windows desktop application with Velopack (K22-CI-30, K22-CI-31,
+# K22-REL-01..07; architecture/windows-desktop-app.md section 6). Called from the
+# calling repository's tag workflow; see templates/workflows/release-velopack.yml:
+#
+#   on:
+#     push:
+#       tags: ['v*']
+#   jobs:
+#     release:
+#       uses: KofTwentyTwo/standards/.github/workflows/release-velopack.yml@<sha> # vX.Y.Z
+#       permissions:
+#         contents: write      # create the GitHub release
+#         id-token: write      # sign attestations (Sigstore) and, when signing, Azure OIDC
+#         attestations: write  # store attestations
+#       with:
+#         solution: MyApp.slnx
+#         app-project: src/MyApp/MyApp.csproj
+#         app-id: myapp
+#         main-exe: MyApp.exe
+#         icon: src/MyApp/Assets/Brand/app.ico
+#
+# What this workflow does, in order:
+#   build    (Windows, read-only): validate the tag and derive the Velopack channel
+#            (prerelease -> dev, otherwise stable), locked restore, Release build with
+#            warnings as errors, tests and coverage gate (K22-CI-31), then publish the
+#            app unpackaged and self-contained, and the optional CLI as a single file.
+#   package  (Windows, environment `release`): optionally Authenticode-sign the
+#            published binaries with Azure Trusted Signing over OIDC (input `sign`,
+#            off until exception EX-0002 closes), download the previous release on the
+#            same channel as the delta baseline, `vpk pack` (which signs Setup.exe with
+#            the same identity when `sign` is on), and zip the CLI. Only this build's
+#            Velopack assets (from assets.<channel>.json) are kept, with a
+#            releases.<channel>.json feed limited to them, exactly as `vpk upload` does.
+#   sbom     (Linux): CycloneDX 1.6 SBOMs of the published app and CLI (Syft), attested
+#            against the installer, portable zip, full package, and CLI zip.
+#   attest   (Linux): SHA256SUMS over every asset (including the fixed-name channel
+#            files), then SLSA build provenance for all of them. The build runs here, in
+#            KofTwentyTwo/standards, so the provenance names this workflow as the
+#            builder (SLSA Build L3).
+#   release  (Linux): draft GitHub release with generated notes and every asset, then
+#            publish (releases are immutable once published).
+#
+# winget is not done here: its token belongs to the calling repository's `release`
+# environment, so the optional winget job lives in the caller (see the template).
+name: release-velopack
+
+on:
+  workflow_call:
+    inputs:
+      solution:
+        description: Solution (.slnx or .sln) to build and test.
+        type: string
+        required: true
+      app-project:
+        description: Path of the WinUI or WPF application project to publish.
+        type: string
+        required: true
+      app-id:
+        description: Velopack package id (lowercase), also the asset name prefix.
+        type: string
+        required: true
+      main-exe:
+        description: File name of the application executable, e.g. MyApp.exe.
+        type: string
+        required: true
+      icon:
+        description: Path of the .ico used for Setup.exe.
+        type: string
+        required: true
+      platform:
+        description: Solution platform passed as -p:Platform.
+        type: string
+        default: x64
+      runtime:
+        description: Runtime identifier to publish for.
+        type: string
+        default: win-x64
+      coverage-packages:
+        description: Comma-separated coverage packages that must meet coverage-minimum. Empty disables the gate.
+        type: string
+        default: ""
+      coverage-minimum:
+        description: Minimum line coverage, in percent.
+        type: number
+        default: 100
+      test-projects:
+        description: Newline-separated test projects to run with coverage before publishing.
+        type: string
+        default: ""
+      cli-project:
+        description: Optional command-line project, published as a self-contained single-file exe in <app-id>-cli-<runtime>-<version>.zip.
+        type: string
+        default: ""
+      repository-name:
+        description: Display name used in the release title. Defaults to the repository name.
+        type: string
+        default: ""
+      sign:
+        description: >-
+          Authenticode-sign binaries and Setup.exe with Azure Trusted Signing (OIDC). Requires the
+          variables AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID, TRUSTED_SIGNING_ENDPOINT,
+          TRUSTED_SIGNING_ACCOUNT, and TRUSTED_SIGNING_PROFILE in the caller's `release` environment.
+          Off until exception EX-0002 (signing identity validation) closes.
+        type: boolean
+        default: false
+    outputs:
+      version:
+        description: The released version (tag without the leading v).
+        value: ${{ jobs.build.outputs.version }}
+      prerelease:
+        description: '"true" when the version has a prerelease suffix.'
+        value: ${{ jobs.build.outputs.prerelease }}
+      channel:
+        description: The Velopack channel (stable or dev).
+        value: ${{ jobs.build.outputs.channel }}
+      setup:
+        description: File name of the Setup executable in the release.
+        value: ${{ jobs.package.outputs.setup }}
+
+permissions: {}
+
+jobs:
+  build:
+    name: build
+    runs-on: windows-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+      channel: ${{ steps.version.outputs.channel }}
+    env:
+      # Prefixed: MSBuild turns every environment variable into a property, so names like
+      # PLATFORM or VERSION would silently change the build.
+      K22_SOLUTION: ${{ inputs.solution }}
+      K22_PLATFORM: ${{ inputs.platform }}
+      K22_RUNTIME: ${{ inputs.runtime }}
+      K22_APP_PROJECT: ${{ inputs.app-project }}
+      K22_CLI_PROJECT: ${{ inputs.cli-project }}
+      TEST_PROJECTS: ${{ inputs.test-projects }}
+      COVERAGE_PACKAGES: ${{ inputs.coverage-packages }}
+      COVERAGE_MINIMUM: ${{ inputs.coverage-minimum }}
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Strict SemVer 2.0 tag; build metadata ('+...') is rejected (K22-REL-01). A
+      # prerelease goes to the Velopack `dev` channel, everything else to `stable`; an
+      # installed app only ever updates within its own channel.
+      - name: Validate tag and derive version and channel
+        id: version
+        shell: pwsh
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if ($env:REF_TYPE -ne 'tag')
+          {
+             Write-Output "::error::Releases run only for tags; got $env:REF_TYPE '$env:REF_NAME'."
+             exit 1
+          }
+          $semver = '^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*)?$'
+          if ($env:REF_NAME -cnotmatch $semver)
+          {
+             Write-Output "::error::Tag '$env:REF_NAME' is not vMAJOR.MINOR.PATCH with an optional prerelease suffix."
+             exit 1
+          }
+          $version = $env:REF_NAME.Substring(1)
+          $isPrerelease = $version.Contains('-')
+          $prerelease = $isPrerelease.ToString().ToLowerInvariant()
+          $channel = if ($isPrerelease) { 'dev' } else { 'stable' }
+          Write-Output "Version $version, prerelease $prerelease, channel $channel"
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "prerelease=$prerelease" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "channel=$channel" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      # No caches anywhere in this workflow (K22-CI-15): a cache written by a pull
+      # request run must never reach a release.
+      - name: Restore (locked)
+        shell: pwsh
+        run: dotnet restore $env:K22_SOLUTION "-p:Platform=$env:K22_PLATFORM" --locked-mode
+
+      - name: Build (Release, warnings as errors)
+        shell: pwsh
+        env:
+          K22_VERSION: ${{ steps.version.outputs.version }}
+        run: dotnet build $env:K22_SOLUTION -c Release "-p:Platform=$env:K22_PLATFORM" "-p:Version=$env:K22_VERSION" -warnaserror --no-restore
+
+      - name: Test with coverage
+        if: inputs.test-projects != ''
+        shell: pwsh
+        run: |
+          $settings = @()
+          if (Test-Path -LiteralPath coverage.runsettings) { $settings = @('--settings', 'coverage.runsettings') }
+          $projects = $env:TEST_PROJECTS -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+          foreach ($project in $projects)
+          {
+             dotnet test $project -c Release --no-build @settings --collect:"XPlat Code Coverage" --results-directory TestResults
+             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      - name: Coverage gate
+        if: inputs.coverage-packages != ''
+        shell: pwsh
+        run: |
+          $files = @(Get-ChildItem -Path TestResults -Recurse -Filter coverage.cobertura.xml -ErrorAction SilentlyContinue)
+          if ($files.Count -eq 0)
+          {
+             Write-Output '::error::No coverage.cobertura.xml under TestResults.'
+             exit 1
+          }
+          $reports = foreach ($file in $files) { [xml] (Get-Content -LiteralPath $file.FullName -Raw) }
+          $required = [double] $env:COVERAGE_MINIMUM / 100
+          $failed = $false
+          foreach ($name in ($env:COVERAGE_PACKAGES -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ }))
+          {
+             $rates = foreach ($report in $reports)
+             {
+                $package = @($report.coverage.packages.package) | Where-Object { $_.name -eq $name }
+                if ($package) { [double]::Parse($package.'line-rate', [Globalization.CultureInfo]::InvariantCulture) }
+             }
+             if (-not $rates)
+             {
+                Write-Output "::error::Package '$name' was not found in any coverage report."
+                $failed = $true
+                continue
+             }
+             $best = ($rates | Measure-Object -Maximum).Maximum
+             Write-Output ('{0} line coverage: {1}% (required {2}%)' -f $name, [math]::Round($best * 100, 2), $env:COVERAGE_MINIMUM)
+             if ($best -lt $required) { $failed = $true }
+          }
+          if ($failed) { exit 1 }
+
+      # Unpackaged (no MSIX) and self-contained, including the Windows App SDK runtime:
+      # the shape Velopack installs per user without admin rights. Trimming stays off
+      # because WinUI and WPF rely on reflection the trimmer cannot see.
+      - name: Publish app (unpackaged, self-contained)
+        shell: pwsh
+        env:
+          K22_VERSION: ${{ steps.version.outputs.version }}
+        run: >-
+          dotnet publish $env:K22_APP_PROJECT -c Release "-p:Platform=$env:K22_PLATFORM" -r $env:K22_RUNTIME --self-contained
+          "-p:Version=$env:K22_VERSION" -p:RestoreLockedMode=true -p:WindowsPackageType=None
+          -p:WindowsAppSDKSelfContained=true -p:PublishTrimmed=false -o publish/app
+
+      - name: Publish CLI (self-contained single file)
+        if: inputs.cli-project != ''
+        shell: pwsh
+        env:
+          K22_VERSION: ${{ steps.version.outputs.version }}
+        run: >-
+          dotnet publish $env:K22_CLI_PROJECT -c Release -r $env:K22_RUNTIME --self-contained
+          "-p:Version=$env:K22_VERSION" -p:RestoreLockedMode=true -p:PublishSingleFile=true -o publish/cli
+
+      - name: Upload published app
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: publish-app
+          path: publish/app
+          if-no-files-found: error
+
+      - name: Upload published CLI
+        if: inputs.cli-project != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: publish-cli
+          path: publish/cli
+          if-no-files-found: error
+
+  package:
+    name: package
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 45
+    # The signing identity (Azure variables) lives in the caller's `release` environment,
+    # which only allows protected v* tags (K22-CI-16).
+    environment: release
+    permissions:
+      contents: read  # check out the icon; read earlier releases for the delta baseline
+      id-token: write # Azure OIDC login, used only when inputs.sign is true
+    outputs:
+      setup: ${{ steps.collect.outputs.setup }}
+    env:
+      K22_VERSION: ${{ needs.build.outputs.version }}
+      K22_CHANNEL: ${{ needs.build.outputs.channel }}
+      K22_PRERELEASE: ${{ needs.build.outputs.prerelease }}
+      K22_APP_ID: ${{ inputs.app-id }}
+      K22_MAIN_EXE: ${{ inputs.main-exe }}
+      K22_ICON: ${{ inputs.icon }}
+      K22_RUNTIME: ${{ inputs.runtime }}
+      K22_SIGN: ${{ inputs.sign }}
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Download published app
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: publish-app
+          path: publish/app
+
+      - name: Download published CLI
+        if: inputs.cli-project != ''
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: publish-cli
+          path: publish/cli
+
+      # Signing is OFF by default: exception EX-0002 records that the Azure Trusted
+      # Signing identity is still being validated. Until then, integrity and origin rest
+      # on SHA256SUMS and the build-provenance attestations (K22-REL-04).
+      - name: Azure login (OIDC)
+        if: inputs.sign
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      # Signs the app's own executables and DLLs (and the CLI) before packing, so the
+      # binaries inside the installer, the portable zip, and the update packages are
+      # all signed (K22-REL-05).
+      - name: Sign published binaries (Azure Trusted Signing)
+        if: inputs.sign
+        uses: azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
+        with:
+          endpoint: ${{ vars.TRUSTED_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.TRUSTED_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.TRUSTED_SIGNING_PROFILE }}
+          files-folder: ${{ github.workspace }}\publish
+          files-folder-filter: exe,dll
+          files-folder-recurse: true
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+          cache-dependencies: false
+          exclude-environment-credential: true
+          exclude-workload-identity-credential: true
+          exclude-managed-identity-credential: true
+          exclude-shared-token-cache-credential: true
+          exclude-visual-studio-credential: true
+          exclude-visual-studio-code-credential: true
+          exclude-azure-powershell-credential: true
+          exclude-azure-developer-cli-credential: true
+          exclude-interactive-browser-credential: true
+
+      # vpk signs what it adds (Setup.exe and the update stub) with the same identity,
+      # reading this metadata file and the Azure CLI login above.
+      - name: Write signing metadata for vpk
+        if: inputs.sign
+        shell: pwsh
+        env:
+          TRUSTED_SIGNING_ENDPOINT: ${{ vars.TRUSTED_SIGNING_ENDPOINT }}
+          TRUSTED_SIGNING_ACCOUNT: ${{ vars.TRUSTED_SIGNING_ACCOUNT }}
+          TRUSTED_SIGNING_PROFILE: ${{ vars.TRUSTED_SIGNING_PROFILE }}
+        run: |
+          @{
+             Endpoint = $env:TRUSTED_SIGNING_ENDPOINT
+             CodeSigningAccountName = $env:TRUSTED_SIGNING_ACCOUNT
+             CertificateProfileName = $env:TRUSTED_SIGNING_PROFILE
+          } | ConvertTo-Json | Set-Content -LiteralPath "$env:RUNNER_TEMP\trusted-signing.json" -Encoding utf8
+
+      # The vpk version matches the Velopack NuGet package the apps reference (AppKit).
+      - name: Install vpk
+        shell: pwsh
+        run: dotnet tool install --global vpk --version 1.2.161
+
+      # The first release on a channel has no predecessor; vpk then simply produces no
+      # delta package, so a failed download must not fail the release.
+      - name: Download previous release (delta baseline)
+        continue-on-error: true
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          $pre = @()
+          if ($env:K22_PRERELEASE -eq 'true') { $pre = @('--pre') }
+          vpk download github --repoUrl $env:REPOSITORY_URL --token $env:GITHUB_TOKEN --channel $env:K22_CHANNEL --outputDir Releases @pre
+
+      - name: Velopack pack
+        shell: pwsh
+        run: |
+          $sign = @()
+          if ($env:K22_SIGN -eq 'true') { $sign = @('--azureTrustedSignFile', "$env:RUNNER_TEMP\trusted-signing.json") }
+          vpk pack --packId $env:K22_APP_ID --packVersion $env:K22_VERSION --packDir publish/app --mainExe $env:K22_MAIN_EXE --channel $env:K22_CHANNEL --icon $env:K22_ICON --outputDir Releases @sign
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      # Keeps only what this build produced, as `vpk upload` does: the files listed in
+      # assets.<channel>.json, plus a releases.<channel>.json feed trimmed to this build's
+      # packages (the local feed may also list the downloaded baseline).
+      - name: Collect release assets
+        id: collect
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release | Out-Null
+          $assets = @(Get-Content -LiteralPath "Releases/assets.$env:K22_CHANNEL.json" -Raw | ConvertFrom-Json)
+          if ($assets.Count -eq 0)
+          {
+             Write-Output "::error::vpk produced no assets for channel $env:K22_CHANNEL."
+             exit 1
+          }
+          $names = foreach ($asset in $assets) { [IO.Path]::GetFileName($asset.RelativeFileName) }
+          foreach ($asset in $assets) { Copy-Item -LiteralPath (Join-Path 'Releases' $asset.RelativeFileName) -Destination release }
+
+          $feedName = "releases.$env:K22_CHANNEL.json"
+          $feed = Get-Content -LiteralPath (Join-Path 'Releases' $feedName) -Raw | ConvertFrom-Json
+          $feed.Assets = @($feed.Assets | Where-Object { $_.FileName -in $names })
+          $feed | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path 'release' $feedName) -Encoding utf8NoBOM
+
+          $setup = $names | Where-Object { $_ -like '*-Setup.exe' } | Select-Object -First 1
+          Write-Output "Assets: $($names -join ', '); feed: $feedName; setup: $setup"
+          "setup=$setup" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Zip CLI
+        if: inputs.cli-project != ''
+        shell: pwsh
+        run: Compress-Archive -Path publish/cli/* -DestinationPath "release/$env:K22_APP_ID-cli-$env:K22_RUNTIME-$env:K22_VERSION.zip"
+
+      - name: Upload release files
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-files
+          path: release/*
+          if-no-files-found: error
+
+  sbom:
+    name: sbom
+    needs: [build, package]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write      # sign the SBOM attestations
+      attestations: write  # store them
+    env:
+      K22_VERSION: ${{ needs.build.outputs.version }}
+      K22_APP_ID: ${{ inputs.app-id }}
+    steps:
+      - name: Download published app
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: publish-app
+          path: publish/app
+
+      - name: Download published CLI
+        if: inputs.cli-project != ''
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: publish-cli
+          path: publish/cli
+
+      - name: Download release files
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-files
+          path: release
+
+      - name: Prepare SBOM folder
+        run: mkdir -p sbom
+
+      # CycloneDX 1.6 from the published output: Syft reads the .deps.json files and the
+      # binaries, i.e. exactly what ships (K22-REL-06).
+      - name: Generate app SBOM (Syft)
+        uses: docker://ghcr.io/anchore/syft:v1.54.1@sha256:3eb5379ba7b409c3f4069b686110527af0c47df993fa5c10d13e7cf34f49b1aa
+        with:
+          args: >-
+            scan dir:/github/workspace/publish/app
+            --source-name ${{ inputs.app-id }}
+            --source-version ${{ needs.build.outputs.version }}
+            --output cyclonedx-json@1.6=/github/workspace/sbom/${{ inputs.app-id }}-${{ needs.build.outputs.version }}.cdx.json
+            --quiet
+
+      - name: Generate CLI SBOM (Syft)
+        if: inputs.cli-project != ''
+        uses: docker://ghcr.io/anchore/syft:v1.54.1@sha256:3eb5379ba7b409c3f4069b686110527af0c47df993fa5c10d13e7cf34f49b1aa
+        with:
+          args: >-
+            scan dir:/github/workspace/publish/cli
+            --source-name ${{ inputs.app-id }}-cli
+            --source-version ${{ needs.build.outputs.version }}
+            --output cyclonedx-json@1.6=/github/workspace/sbom/${{ inputs.app-id }}-cli-${{ needs.build.outputs.version }}.cdx.json
+            --quiet
+
+      # The app SBOM describes every artifact that carries the app: installer, portable
+      # zip, and the full update package.
+      - name: Attest app SBOM
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        with:
+          subject-path: |
+            release/*-Setup.exe
+            release/*-Portable.zip
+            release/*-full.nupkg
+          sbom-path: sbom/${{ inputs.app-id }}-${{ needs.build.outputs.version }}.cdx.json
+
+      - name: Attest CLI SBOM
+        if: inputs.cli-project != ''
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        with:
+          subject-path: release/*-cli-*.zip
+          sbom-path: sbom/${{ inputs.app-id }}-cli-${{ needs.build.outputs.version }}.cdx.json
+
+      - name: Upload SBOMs
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sbom
+          path: sbom/*.cdx.json
+          if-no-files-found: error
+
+  attest:
+    name: attest
+    needs: [build, sbom]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write      # sign the provenance attestation
+      attestations: write  # store it
+    steps:
+      - name: Download release files
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-files
+          path: release
+
+      - name: Download SBOMs
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sbom
+          path: release
+
+      # Lists every asset, including Velopack's fixed-name files (Setup, portable zip,
+      # releases.<channel>.json), so assets without the version in their name are still
+      # tied to this release (K22-REL-03, K22-REL-04).
+      - name: Checksums
+        working-directory: release
+        run: |
+          find . -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort | xargs -d '\n' sha256sum > "$RUNNER_TEMP/SHA256SUMS"
+          mv "$RUNNER_TEMP/SHA256SUMS" SHA256SUMS
+          cat SHA256SUMS
+
+      # Anyone can verify an asset with:
+      #   gh attestation verify <file> --repo <owner/repo> --signer-repo KofTwentyTwo/standards
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: release/*
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-assets
+          path: release/*
+          if-no-files-found: error
+
+  release:
+    name: release
+    needs: [build, attest]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write # create and publish the GitHub release
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-assets
+          path: release
+
+      # Releases are immutable once published (K22-REL-07): everything lands on a draft
+      # first, and publishing is the last step. Velopack's GitHub source reads
+      # releases.<channel>.json from published releases, so installed apps see the
+      # update only after this publish.
+      - name: Create draft release with assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          K22_VERSION: ${{ needs.build.outputs.version }}
+          PRERELEASE: ${{ needs.build.outputs.prerelease }}
+          DISPLAY_NAME: ${{ inputs.repository-name || github.event.repository.name }}
+        run: |
+          prerelease_flag=()
+          if [[ "$PRERELEASE" == "true" ]]; then prerelease_flag=(--prerelease); fi
+          gh release create "$TAG" --draft --verify-tag --generate-notes \
+            --title "$DISPLAY_NAME $K22_VERSION" "${prerelease_flag[@]}" release/*
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: gh release edit "$TAG" --draft=false

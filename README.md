@@ -236,6 +236,7 @@ from each repository:
 | `codeql.yml` | `codeql / analyze (<language>)` | CodeQL `security-extended`, failing on high severity and above |
 | `dotnet.yml` | `ci / build-test`, `ci / format`, `ci / ui-tests` | .NET locked restore, zero-warning build, tests, coverage gate, Kingsrook format check, FlaUI UI tests |
 | `release-nuget.yml` | (tag workflow) | NuGet release: gates, pack, SBOM, checksums, SLSA provenance, GitHub release; pairs with a caller `publish` job for nuget.org |
+| `release-velopack.yml` | (tag workflow) | Windows app release: gates, self-contained publish, optional Azure Trusted Signing, Velopack pack (stable/dev channels, deltas), optional CLI zip, SBOMs, checksums, SLSA provenance, GitHub release; optional caller `winget` job |
 
 A caller looks like this:
 
