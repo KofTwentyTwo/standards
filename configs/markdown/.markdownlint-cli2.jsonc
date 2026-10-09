@@ -1,0 +1,17 @@
+// KofTwentyTwo markdownlint configuration (markdownlint-cli2). Copy to the repository
+// root. Defaults stay on except where they contradict the KofTwentyTwo standards.
+{
+  "config": {
+    "default": true,
+    // K22-CODE-08: no line-length limit. Prose wraps where it reads well; tables and
+    // links never wrap.
+    "MD013": false,
+    // Collapsible sections in templates and READMEs.
+    "MD033": { "allowed_elements": ["details", "summary", "br", "b", "sub", "sup"] },
+    // GitHub pull request and issue templates start below the title GitHub renders.
+    "MD041": false,
+    // Repeated headings are fine under different parents (e.g. "Why" per section).
+    "MD024": { "siblings_only": true }
+  },
+  "ignores": ["**/node_modules/**", "LICENSE*"]
+}
