@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CheckStyle-IDEA plugin settings (K22-CODE-JV-02): checks every Java file in the IDE
+     with the same KofTwentyTwo config CI uses, loaded from its published URL. -->
+<project version="4">
+  <component name="CheckStyle-IDEA" serialisationVersion="2">
+    <checkstyleVersion>14.3.0</checkstyleVersion>
+    <scanScope>JavaOnlyWithTests</scanScope>
+    <option name="thirdPartyClasspath" />
+    <option name="activeLocationIds">
+      <option value="koftwentytwo" />
+    </option>
+    <option name="locations">
+      <list>
+        <ConfigurationLocation id="bundled-sun-checks" type="BUNDLED" scope="All" description="Sun Checks">(bundled)</ConfigurationLocation>
+        <ConfigurationLocation id="bundled-google-checks" type="BUNDLED" scope="All" description="Google Checks">(bundled)</ConfigurationLocation>
+        <ConfigurationLocation id="koftwentytwo" type="HTTP_URL" scope="All" description="KofTwentyTwo (Kingsrook) checks">https://raw.githubusercontent.com/KofTwentyTwo/standards/main/configs/java/checkstyle/checkstyle.xml</ConfigurationLocation>
+      </list>
+    </option>
+  </component>
+</project>
