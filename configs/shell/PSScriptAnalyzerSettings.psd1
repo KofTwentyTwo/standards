@@ -32,7 +32,9 @@
          # is not checked either way.
          CheckOpenParen                  = $false
          CheckOpenBrace                  = $false
-         CheckOperator                   = $true
+         # Kingsrook aligns the `=` of consecutive assignments (PSAlignAssignmentStatement
+         # below); CheckOperator would then flag every aligned line, so it is off.
+         CheckOperator                   = $false
          CheckPipe                       = $true
          CheckSeparator                  = $true
          CheckParameter                  = $true
