@@ -59,6 +59,7 @@ K22-<AREA>-<NN>
 | `TEST` | [standards/testing.md](../standards/testing.md) | Test levels, coverage, test hygiene |
 | `DEP` | [standards/dependencies.md](../standards/dependencies.md) | Selecting, pinning, and updating dependencies |
 | `REL` | [standards/releases.md](../standards/releases.md) | Versioning, signing, provenance, SBOM, support |
+| `WS` | [standards/workstation.md](../standards/workstation.md) | Developer machine setup, 1Password keys, machine baseline |
 | `CODE` | [standards/coding/](../standards/coding/README.md) | Cross-language coding rules |
 | `CODE-<LANG>` | `standards/coding/<language>.md` | One profile per language, e.g. `K22-CODE-CS-03` |
 

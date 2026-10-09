@@ -54,8 +54,9 @@ not needed. The review is recorded as a closed issue in this repository.
 
 ## Secrets and credentials
 
-**K22-SEC-10 (MUST)** Secrets are stored only in: a password manager, the operating
-system's credential store, or GitHub encrypted secrets bound to a protected environment.
+**K22-SEC-10 (MUST)** Secrets are stored only in: 1Password (KofTwentyTwo's password
+manager), the operating system's credential store (for an application's own user
+credentials), or GitHub encrypted secrets bound to a protected environment.
 They never appear in source, history, logs, CI output, issue or pull request text,
 command-line arguments, or prompts to AI tools.
 *Why:* each of those places is copied, cached, or published. *Verified by:* secret
@@ -78,12 +79,15 @@ is revoked first, then replaced, then the service's access logs are checked for 
 and the event is handled as an incident.
 *Why:* removing a secret from a file does not un-leak it. *Verified by:* incident record.
 
-**K22-SEC-14 (MUST)** Signing keys are held by hardware or a managed signing service:
-commit-signing keys in a hardware-backed or password-manager SSH agent, release signing
-through a cloud HSM-backed service (Azure Trusted Signing for Windows, Apple Developer ID
-for macOS). Private signing keys are never stored as files on disk or in CI secrets.
-*Why:* a stolen signing key lets an attacker ship malware as you. *Verified by:* signing
-configuration review.
+**K22-SEC-14 (MUST)** Private keys never exist as files. SSH keys (authentication,
+commit signing, deploy keys) are generated in 1Password and used through its SSH agent
+([workstation standard](../standards/workstation.md#keys-and-secrets-live-in-1password));
+release signing goes through a cloud HSM-backed service (Azure Trusted Signing for
+Windows, Apple Developer ID for macOS). Private keys are never stored on disk or in CI
+secrets.
+*Why:* a stolen signing key lets an attacker ship malware as you, and a key file can be
+copied silently. *Verified by:* `setup/Install-Workstation.ps1 -CheckOnly` (private keys
+on disk, git signing through 1Password); signing configuration review.
 
 ## Development environment
 
