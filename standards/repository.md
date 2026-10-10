@@ -88,6 +88,20 @@ released software, links to the latest release and the verification instructions
 [releases](releases.md#verifying-a-release).
 *Why:* users can see the security posture before they install. *Verified by:* review.
 
+**K22-REPO-12 (MUST)** Public, open-source Product repositories enroll in the
+[OpenSSF Best Practices program](https://www.bestpractices.dev/en), link their actual
+project badge from the README, and maintain an evidence-backed assessment in
+`docs/security/best-practices.md`. Reassess at least every 90 days and before each
+MINOR or MAJOR release. Record applicability, evidence path, and the actual project
+URL in `docs/security/assurance.json` using the [starter record](../templates/repo/docs/security/assurance.json).
+Private repositories record their scope and reason instead; Internal repositories
+follow the tier rules above. Registration obstacles require a dated exception, not
+a placeholder badge or a claim of passing. A passing badge is the adoption target;
+enrollment alone does not demonstrate that every criterion is met.
+*Why:* a public assessment makes security practice gaps visible and accountable.
+*Verified by:* conformance checker (record, evidence and badge link); maintainer
+review of the provider's project page, repository identity, and criterion answers.
+
 ## Branch and tag protection
 
 Protection is configured with **repository rulesets**, never with legacy branch

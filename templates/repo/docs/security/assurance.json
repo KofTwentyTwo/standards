@@ -1,0 +1,17 @@
+{
+   "schemaVersion": 1,
+   "badge": {
+      "applicability": "required",
+      "reason": "Replace with this repository's public Product scope, or a reviewed private/Internal rationale.",
+      "projectUrl": null,
+      "evidence": "docs/security/best-practices.md"
+   },
+   "fuzzing": {
+      "applicability": "required",
+      "reason": "Replace with actual untrusted-input boundaries, or a reviewed not-applicable rationale.",
+      "targets": [],
+      "command": "",
+      "workflow": "",
+      "evidence": "docs/security/fuzzing.md"
+   }
+}

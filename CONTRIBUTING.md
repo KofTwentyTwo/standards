@@ -41,6 +41,7 @@ Documentation and package checks:
 npx markdownlint-cli2 "**/*.md"
 lychee --offline --include-fragments --no-progress './**/*.md'
 pwsh tools/Test-RepoConformance.ps1 -SelfTest
+pwsh tools/Test-RepoConformance.Fuzz.ps1 -Seed 22023 -Iterations 1000
 pwsh tools/Test-StandardsPackage.ps1
 pwsh tools/Test-RepoConformance.ps1 -LocalPath . -StaticOnly
 ```
@@ -59,6 +60,9 @@ pwsh tools/Test-RepoConformance.ps1 -Repository KofTwentyTwo/standards -LocalPat
 ```
 
 The same checks run in CI on every pull request and must pass before merging.
+Parser changes must pass both CI seeds and retain any discovered failure as a
+deterministic regression test. See [fuzzing](docs/security/fuzzing.md) for extended
+campaigns and [badge assessment](docs/security/best-practices.md) for enrollment evidence.
 
 ## License of contributions
 

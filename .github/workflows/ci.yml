@@ -93,6 +93,16 @@ jobs:
         shell: pwsh
         run: ./tools/Test-RepoConformance.ps1 -SelfTest
 
+      - name: Conformance parser fuzzing
+        shell: pwsh
+        env:
+          CI_EVENT_NAME: ${{ github.event_name }}
+          CI_REF_TYPE: ${{ github.ref_type }}
+        run: |
+          $iterations = if ($env:CI_EVENT_NAME -eq 'schedule' -or $env:CI_REF_TYPE -eq 'tag') { 10000 } else { 1000 }
+          ./tools/Test-RepoConformance.Fuzz.ps1 -Seed 22023 -Iterations $iterations
+          ./tools/Test-RepoConformance.Fuzz.ps1 -Seed 99173 -Iterations $iterations
+
       - name: Standards package tests
         shell: pwsh
         run: ./tools/Test-StandardsPackage.ps1
