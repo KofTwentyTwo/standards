@@ -336,9 +336,29 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
-      # Signs the app's own executables and DLLs (and the CLI) before packing, so the
-      # binaries inside the installer, the portable zip, and the update packages are
-      # all signed (K22-REL-05).
+      # Signs the executables and DLLs under publish that carry no valid signature
+      # yet (the app's own binaries and unsigned third-party ones), so the binaries
+      # inside the installer, the portable zip and the update packages are all
+      # signed (K22-REL-05). Already-signed files (the .NET runtime, Windows App SDK)
+      # keep their publisher's signature and are not re-signed: a self-contained
+      # publish holds ~300 of them at ~2 s each, which is how the first real run
+      # (gclo v1.0.2-beta.2, #26) hit the signing action's 300 s default timeout.
+      - name: Select the binaries to sign
+        if: inputs.sign
+        id: sign-list
+        shell: pwsh
+        env:
+          K22_MAIN_EXE: ${{ inputs.main-exe }}
+          K22_CLI_PROJECT: ${{ inputs.cli-project }}
+        run: |
+          $all = Get-ChildItem publish -Recurse -Include *.exe, *.dll
+          $unsigned = @($all | Where-Object { (Get-AuthenticodeSignature -LiteralPath $_.FullName).Status -ne 'Valid' })
+          $names = $unsigned | ForEach-Object { $_.Name }
+          if ($names -notcontains $env:K22_MAIN_EXE) { throw "publish/app/$env:K22_MAIN_EXE is missing or already signed by someone else." }
+          if ($env:K22_CLI_PROJECT -and -not ($unsigned | Where-Object { $_.Extension -eq '.exe' -and $_.FullName -like '*\publish\cli\*' })) { throw 'publish/cli has no unsigned exe to sign.' }
+          Write-Output "Signing $($unsigned.Count) of $($all.Count) binaries; $($all.Count - $unsigned.Count) already carry a valid signature."
+          "files<<EOF`n$(($unsigned.FullName) -join "`n")`nEOF" | Add-Content -LiteralPath $env:GITHUB_OUTPUT
+
       - name: Sign published binaries (Azure Trusted Signing)
         if: inputs.sign
         uses: azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
@@ -346,12 +366,11 @@ jobs:
           endpoint: ${{ vars.TRUSTED_SIGNING_ENDPOINT }}
           signing-account-name: ${{ vars.TRUSTED_SIGNING_ACCOUNT }}
           certificate-profile-name: ${{ vars.TRUSTED_SIGNING_PROFILE }}
-          files-folder: ${{ github.workspace }}\publish
-          files-folder-filter: exe,dll
-          files-folder-recurse: true
+          files: ${{ steps.sign-list.outputs.files }}
           file-digest: SHA256
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
+          timeout: 1800
           cache-dependencies: false
           exclude-environment-credential: true
           exclude-workload-identity-credential: true
@@ -363,9 +382,13 @@ jobs:
           exclude-azure-developer-cli-credential: true
           exclude-interactive-browser-credential: true
 
-      # vpk signs what it adds (Setup.exe and the update stub) with the same identity,
-      # reading this metadata file and the Azure CLI login above.
-      - name: Write signing metadata for vpk
+      # vpk signs what it adds (Setup.exe, Update.exe, the execution stub) with the
+      # same identity. It calls this wrapper once per file (--signTemplate) instead
+      # of its built-in Azure path (--azureTrustedSignFile), which hung for over ten
+      # minutes on nine files in testing; the wrapper uses the SignTool and the
+      # Artifact Signing client the signing step above already installed, with the
+      # Azure CLI login, and skips files that already carry a valid signature.
+      - name: Write the signing wrapper for vpk
         if: inputs.sign
         shell: pwsh
         env:
@@ -378,6 +401,18 @@ jobs:
              CodeSigningAccountName = $env:TRUSTED_SIGNING_ACCOUNT
              CertificateProfileName = $env:TRUSTED_SIGNING_PROFILE
           } | ConvertTo-Json | Set-Content -LiteralPath "$env:RUNNER_TEMP\trusted-signing.json" -Encoding utf8
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
+             Where-Object { $_.FullName -match '\\x64\\' } | Sort-Object FullName -Descending | Select-Object -First 1
+          $dlib = Get-ChildItem "$env:LOCALAPPDATA\ArtifactSigning" -Recurse -Filter Azure.CodeSigning.Dlib.dll |
+             Where-Object { $_.FullName -match '\\x64\\' } | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $signtool -or -not $dlib) { throw "signtool.exe ($signtool) or Azure.CodeSigning.Dlib.dll ($dlib) not found." }
+          @"
+          param([Parameter(Mandatory)][string] `$File)
+          `$ErrorActionPreference = 'Stop'
+          if ((Get-AuthenticodeSignature -LiteralPath `$File).Status -eq 'Valid') { exit 0 }
+          & '$($signtool.FullName)' sign /fd SHA256 /tr http://timestamp.acs.microsoft.com /td SHA256 /dlib '$($dlib.FullName)' /dmdf '$env:RUNNER_TEMP\trusted-signing.json' `$File | Out-Null
+          if (`$LASTEXITCODE -ne 0) { throw "signtool failed (`$LASTEXITCODE) on `$File" }
+          "@ | Set-Content -LiteralPath "$env:RUNNER_TEMP\sign-one.ps1" -Encoding utf8
 
       # The vpk version matches the Velopack NuGet package the apps reference (AppKit).
       - name: Install vpk
@@ -401,9 +436,29 @@ jobs:
         shell: pwsh
         run: |
           $sign = @()
-          if ($env:K22_SIGN -eq 'true') { $sign = @('--azureTrustedSignFile', "$env:RUNNER_TEMP\trusted-signing.json") }
+          if ($env:K22_SIGN -eq 'true') { $sign = @('--signTemplate', "pwsh -NoProfile -NonInteractive -File `"$env:RUNNER_TEMP\sign-one.ps1`" `"{{file}}`"") }
           vpk pack --packId $env:K22_APP_ID --packVersion $env:K22_VERSION --packDir publish/app --mainExe $env:K22_MAIN_EXE --channel $env:K22_CHANNEL --icon $env:K22_ICON --outputDir Releases @sign
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      # Nothing unsigned leaves this job: Setup.exe and every executable inside the
+      # portable zip (the app, Update.exe, the execution stub) must verify before the
+      # release is even drafted (K22-REL-05).
+      - name: Verify signatures before packaging further
+        if: inputs.sign
+        shell: pwsh
+        run: |
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe |
+             Where-Object { $_.FullName -match '\\x64\\' } | Sort-Object FullName -Descending | Select-Object -First 1
+          Expand-Archive "Releases/$env:K22_APP_ID-$env:K22_CHANNEL-Portable.zip" -DestinationPath "$env:RUNNER_TEMP\portable" -Force
+          $files = @(Get-Item "Releases/$env:K22_APP_ID-$env:K22_CHANNEL-Setup.exe") + @(Get-ChildItem "$env:RUNNER_TEMP\portable" -Recurse -Include *.exe, *.dll)
+          $failed = @()
+          foreach ($f in $files)
+          {
+             & $signtool.FullName verify /pa /all $f.FullName | Out-Null
+             if ($LASTEXITCODE -ne 0) { $failed += $f.FullName }
+          }
+          if ($failed) { Write-Output "::error::Unsigned or invalid after packing:`n$($failed -join "`n")"; exit 1 }
+          Write-Output "All $($files.Count) packaged executables and libraries verify with signtool."
 
       # Keeps only what this build produced, as `vpk upload` does: the files listed in
       # assets.<channel>.json, plus a releases.<channel>.json feed trimmed to this build's
