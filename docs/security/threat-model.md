@@ -1,6 +1,6 @@
 # Threat model: standards distribution
 
-- **Version reviewed:** v0.1.0 release-bundle implementation
+- **Version reviewed:** v1.0.0 standards baseline
 - **Last updated:** 2026-10-10
 - **Status:** Implementation reviewed; provisioning is verified in the release checklist.
 
@@ -70,6 +70,21 @@ PR and each MINOR/MAJOR checklist; update it when credentials, channels, or work
 trust boundaries change.
 
 ## Review log
+
+- **2026-10-10, v1.0.0:** Reviewed changes since v0.1.2: mandatory applicable badge
+  participation and parser fuzzing, completed passing self-assessment, professional
+  release text, scoped frontend audit exception, and unsigned-file-only Windows
+  signing with verification before packing. Distribution credentials, channels,
+  environment restrictions and provenance boundaries remain unchanged. Badge
+  metadata adds a public provider link; fuzzing executes synthetic local inputs.
+  Signing continues to use the Windows consumer's existing Azure OIDC boundary.
+  The most likely release interruption remains a failed gate or unpublished draft;
+  recovery preserves tags and immutable assets. The highest-impact distribution
+  threat remains a compromised credential or pinned Action, constrained by the
+  existing scoped tokens, protected environments and required checks. Windows
+  publish/resource and launch-smoke limitations remain tracked in
+  [issue #22](https://github.com/KofTwentyTwo/standards/issues/22); consumer workarounds
+  and rehearsal expectations are recorded in [release guidance](../releases.md#known-limitations).
 
 - **2026-10-10, v0.1.2:** Reviewed the explicit reusable-workflow secret contract
   after the unpublished v0.1.1 publisher failed. Only the named App key is passed;

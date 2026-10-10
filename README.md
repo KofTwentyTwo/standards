@@ -8,23 +8,22 @@ reusable GitHub Actions workflows, repository templates, and a conformance check
 [![Docs: CC BY 4.0](https://img.shields.io/badge/docs-CC%20BY%204.0-lightgrey)](LICENSE-docs)
 [![Code: MIT](https://img.shields.io/badge/code-MIT-green)](LICENSE)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15366/badge)](https://www.bestpractices.dev/projects/15366)
-[![Status: draft](https://img.shields.io/badge/status-draft%20(pre--1.0)-orange)](#status)
+[![Status: versioned](https://img.shields.io/badge/status-versioned-blue)](#status)
 
 ## Status
 
-> **Draft standards, before `v1.0.0`.** The requirements are written and the
-> enforcement tooling exists, but no KofTwentyTwo repository has been verified against
-> them yet; adoption starts with this repository, then
-> [AppKit](https://github.com/KofTwentyTwo/AppKit) and
-> [gclo](https://github.com/KofTwentyTwo/gclo). The compliance crosswalks therefore list
-> controls as **Defined**, not met, and the response times in the security program are
-> targets until `v1.0.0`. See [how these standards work](policies/README.md).
+> **Versioned standards with repository-specific adoption.** Immutable releases
+> identify each published baseline. This repository has completed repository and CI
+> conformance checks; other repositories record their own checks and exceptions.
+> Compliance crosswalks describe requirements and evidence for individual controls.
+> See [how these standards work](policies/README.md) and the
+> [release checklists](https://github.com/KofTwentyTwo/standards/issues?q=is%3Aissue+%22Release+v%22).
 
 ---
 
-**Tier:** Product ([scope](policies/README.md#scope)). **Conformance:** this repository is
-the first to adopt the standards; it will state *Conforms to KofTwentyTwo standards
-v1.0* once the checker passes on it.
+**Tier:** Product ([scope](policies/README.md#scope)). **Conformance:** repository and
+CI checks reviewed on 2026-10-10: zero FAIL or UNKNOWN, with manual review items
+resolved in the release checklist and approved [exceptions](exceptions/register.md).
 
 ## How to use
 
