@@ -34,6 +34,8 @@ keeping breaking changes visible without decorative symbols. Versions still come
 from Conventional Commits; note entries link to reviewed PRs. Maintainers review
 breaking-change descriptions before publication. Repository text and automation
 output use professional wording, without emojis, joke copy or bot sound effects.
+Only generated `CHANGELOG.md` permits native spacing, bare links and repeated
+category headings; other documentation retains the normal Markdown rules.
 
 ## One-time maintainer setup
 
