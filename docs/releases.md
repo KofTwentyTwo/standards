@@ -80,7 +80,9 @@ and Release Please actions are pinned and tracked by Dependabot. See the
    the checklist; reruns all repository CI gates; builds and attests the assets;
    and waits for the `release` environment approval. Publication creates a draft with
    all assets and notes, then publishes it. The release PR is marked
-   `autorelease: tagged` so the next version can be proposed.
+   `autorelease: tagged` so the next version can be proposed. Version proposals wait
+   while a merged release PR has `autorelease: pending`; a failed, permanently
+   retired version uses `autorelease: failed` instead.
 
 These bundles ship no compiled software, so the compiled-artifact SBOM requirement
 does not apply. The included workflows/configs retain their upstream pins; source

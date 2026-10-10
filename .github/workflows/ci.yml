@@ -125,7 +125,24 @@ jobs:
           permission-contents: write
           permission-pull-requests: write
 
+      # Version files merge before publication; wait for the publisher's label.
+      - name: Check for unpublished merged releases
+        id: pending
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          pending="$(gh api --paginate "repos/$GH_REPO/pulls?state=closed&per_page=100" --jq '.[] | select(.merged_at != null and any(.labels[]; .name == "autorelease: pending")) | .number')"
+          if [[ -n "$pending" ]]; then
+            echo 'can-propose=false' >> "$GITHUB_OUTPUT"
+            echo "Waiting for publication of merged release PR(s): $pending"
+          else
+            echo 'can-propose=true' >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Propose a semantic release
+        if: steps.pending.outputs.can-propose == 'true'
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           token: ${{ steps.app.outputs.token }}
