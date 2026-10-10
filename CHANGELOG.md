@@ -27,4 +27,3 @@
 
 * KofTwentyTwo standards v1 policies, standards, and architecture ([e7745eb](https://github.com/KofTwentyTwo/standards/commit/e7745eb476d6644f8fcd7ca8b3a85111d151dc61))
 * mark standards as draft and expand the README ([855cf44](https://github.com/KofTwentyTwo/standards/commit/855cf4409180d2f1aa58a062c8c140be2ac27917))
-
