@@ -12,6 +12,7 @@ Open and closed exceptions to the KofTwentyTwo standards. The process is in
 | [EX-0005](#ex-0005) | Open | K22-AI-10 (agents via PR only), K22-AI-11 (in part: unconfirmed pushes) | second-brain, nix, Praetor, Jellyfin | Reviewed yearly, next on 2027-10-10 |
 | [EX-0006](#ex-0006) | Open | K22-CI-16 (tag-only environment secrets) | standards | 2027-04-10; review 2027-01-10 |
 | [EX-0007](#ex-0007) | Closed | K22-REPO-12 (enrollment) | KofTwentyTwo/standards | Closed 2026-10-10 |
+| [EX-0008](#ex-0008) | Open | K22-CI-21 (HIGH dependency finding) | Website-Frontend, development-only braces 3.0.3 | 2026-11-10; review 2026-10-17 |
 
 ## EX-0001
 
@@ -195,3 +196,32 @@ Open and closed exceptions to the KofTwentyTwo standards. The process is in
   badge is in [README](../README.md), the project URL is in
   [assurance.json](../docs/security/assurance.json), and the
   [assessment record](../docs/security/best-practices.md) sets the next review date.
+
+## EX-0008
+
+**Temporary development dependency audit exception for Website-Frontend**
+
+- **Requirements:** `K22-CI-21` blocks HIGH and CRITICAL findings in the resolved
+  dependency graph.
+- **Scope:** `KofTwentyTwo/Website-Frontend` only; development-only `braces` 3.0.3,
+  [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)
+  / CVE-2026-93687 and npm's propagated findings for that same advisory. No other
+  advisory, runtime dependency or CRITICAL finding is covered.
+- **Reason:** the Next ESLint tooling depends on the affected package and no patched
+  npm release exists as of 2026-10-10. npm suggests an unrelated parent downgrade;
+  that does not establish a patched braces release.
+- **Risk:** a deliberately deeply nested caller-supplied brace pattern can exhaust
+  the stack and stop a lint/build process. Website requests and article Markdown do
+  not control the lint glob configuration. The dependency remains vulnerable.
+- **Compensating controls:** the complete audit still runs. A separate production
+  audit must have zero HIGH/CRITICAL findings. The exception checker validates the
+  advisory ID, package, locked version, development-only package paths and expiry;
+  rejects other HIGH/CRITICAL findings, malformed reports and audit errors; and
+  requires reassessment if the registry reports a new braces release. Lint, tests,
+  build, secret scanning, SAST and Trivy remain enabled. No global scanner exclusion
+  is permitted. Website-Frontend configuration cites this ID.
+- **Expires:** 2026-11-10 at 00:00 UTC, or a patched upstream release, whichever
+  occurs first. A newer upstream release blocks acceptance pending reassessment.
+- **Owner:** James Maes, repository maintainer.
+- **Review date:** 2026-10-17. Remove the consumer exception and close this entry once
+  the affected dependency is replaced or patched.
