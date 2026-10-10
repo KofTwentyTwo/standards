@@ -1,3 +1,30 @@
 # Changelog
 
+## 0.1.0 (2026-10-10)
+
+
+### Features
+
+* AI agent operations standard (K22-AGENT) and EX-0005 ([#6](https://github.com/KofTwentyTwo/standards/issues/6)) ([36bf5e6](https://github.com/KofTwentyTwo/standards/commit/36bf5e6d1cb87e995e3295e5c88585568c59c12f))
+* **ci:** reusable .NET CI and NuGet release workflows ([#3](https://github.com/KofTwentyTwo/standards/issues/3)) ([ae3df7a](https://github.com/KofTwentyTwo/standards/commit/ae3df7af77e5a97df231a9f53be9d8ed785ddce5))
+* **ci:** reusable PR, security, and CodeQL workflows and conformance checker ([27b5d96](https://github.com/KofTwentyTwo/standards/commit/27b5d967414682c1554458adbd6a96b6e2888d9b))
+* **ci:** reusable Velopack release workflow for Windows desktop apps ([#5](https://github.com/KofTwentyTwo/standards/issues/5)) ([e8ab30f](https://github.com/KofTwentyTwo/standards/commit/e8ab30f8c60df437440ffd786c87678207246f5c))
+* **coding:** adopt Kingsrook coding standard with IDE and CLI configs ([d6fedc7](https://github.com/KofTwentyTwo/standards/commit/d6fedc762b9ad01caed9a4665097172b11c4f830))
+* **releases:** publish immutable standards bundles ([#8](https://github.com/KofTwentyTwo/standards/issues/8)) ([fbd9757](https://github.com/KofTwentyTwo/standards/commit/fbd9757d335130ff7257645a3e0fef020c20a737))
+* **setup:** one-command workstation setup with keys in 1Password ([#2](https://github.com/KofTwentyTwo/standards/issues/2)) ([529d963](https://github.com/KofTwentyTwo/standards/commit/529d9637ef32e558ac38c9098b053421ad81c968))
+
+
+### Bug Fixes
+
+* **docs:** markdownlint config without line limits; fix lint findings ([#1](https://github.com/KofTwentyTwo/standards/issues/1)) ([deb3175](https://github.com/KofTwentyTwo/standards/commit/deb31758b52ec47737ec8888e0fd637b2bec0680))
+* **pr:** exempt file-licensed packages, accept the security type, and keep the DCO check robust ([#4](https://github.com/KofTwentyTwo/standards/issues/4)) ([ae174f5](https://github.com/KofTwentyTwo/standards/commit/ae174f54959ba4297f2ae174356c4481918fdf44))
+
+
+### Documentation
+
+* KofTwentyTwo standards v1 policies, standards, and architecture ([e7745eb](https://github.com/KofTwentyTwo/standards/commit/e7745eb476d6644f8fcd7ca8b3a85111d151dc61))
+* mark standards as draft and expand the README ([855cf44](https://github.com/KofTwentyTwo/standards/commit/855cf4409180d2f1aa58a062c8c140be2ac27917))
+
+## Changelog
+
 Release Please maintains this file from Conventional Commits.
