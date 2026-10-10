@@ -1,5 +1,8 @@
 # Contributing to {{PROJECT_NAME}}
 
+Use professional wording in code comments, documentation, commit/PR messages,
+release notes and automation output. No emojis, joke copy or bot sound effects.
+
 Thanks for helping. This project follows the
 [KofTwentyTwo standards](https://github.com/KofTwentyTwo/standards); this page is the
 short version of what they ask of a contribution.

@@ -117,7 +117,10 @@ the pull request description discloses it, per
 
 **K22-AGENT-41 (SHOULD)** An agent reports in concise plain language: what changed,
 why, what was verified, and what limitations remain. Document length scales with the
-task; decoration (emojis, filler praise) is omitted unless asked for.
+task. Repository text, including code comments, documentation, commits, PRs, release
+notes and generated automation messages, uses professional wording. Omit emojis,
+joke copy, filler praise and bot sound effects. Configure third-party automation to
+follow the same rule; its default templates are not an exception.
 *Why:* the report is the maintainer's primary review input. *Verified by:* review.
 
 ## Context economy

@@ -24,9 +24,16 @@ against it before packaging.
 
 Use `feat` for new guidance and `!` for new obligations or removed allowances as
 defined in [the versioning policy](../policies/README.md#versioning-of-the-standards).
-Infrastructure changes appear in release notes and can produce PATCH releases;
-`test`, `style`, and `chore` alone do not produce release notes. Review the proposed
+Infrastructure changes can produce PATCH releases;
+`test`, `style`, and `chore` alone do not trigger a version proposal. Review the proposed
 version and notes before merging. A `breaking` label alone does not change the version.
+
+PR headers and footers are explicitly configured in `release-please-config.json`.
+Native GitHub release notes use the plain-language categories in `.github/release.yml`,
+keeping breaking changes visible without decorative symbols. Versions still come
+from Conventional Commits; note entries link to reviewed PRs. Maintainers review
+breaking-change descriptions before publication. Repository text and automation
+output use professional wording, without emojis, joke copy or bot sound effects.
 
 ## One-time maintainer setup
 
