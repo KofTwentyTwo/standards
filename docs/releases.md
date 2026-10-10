@@ -132,7 +132,7 @@ same Git/archive tool versions. The builder refuses an existing output directory
 The initial `v0.1.0` tag was reserved by a workflow-startup failure; no bundle was
 published for it. The `v0.1.1` publisher then stopped before draft creation because
 the caller omitted the environment secret contract. Both tags remain reserved;
-`v0.1.2` is the planned first published bundle. Keep these tags unchanged; use a new
+`v0.1.2` is the first published bundle. Keep these tags unchanged; use a new
 version when a tagged workflow needs a source fix.
 
 Never replace published assets or move/reuse a version tag. Fix a published error
@@ -145,3 +145,14 @@ from `autorelease: pending` to `autorelease: tagged`; do not rebuild the release
 References: [GitHub immutable releases](https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases),
 [enabling immutability](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/establish-provenance-and-integrity/prevent-release-changes),
 and [Release Please token behavior](https://github.com/googleapis/release-please-action#other-actions-on-release-please-prs).
+
+## Known limitations
+
+[Issue #22](https://github.com/KofTwentyTwo/standards/issues/22) tracks Windows App SDK
+publish resources and the missing shared launch-smoke gate in `release-velopack.yml`.
+Windows consumers must keep `WindowsAppSDKSelfContained` and `WindowsPackageType`
+consistent between build and publish, or clean intermediate output before publish.
+Run smoke tests against the published executable and test the installer on a clean
+machine before a stable application release. This remains a consumer-side check
+until the shared workflow implements it. The standards bundle contains source and
+configuration; it does not contain a compiled Windows application.
