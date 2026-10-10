@@ -112,9 +112,38 @@ jobs:
         shell: pwsh
         run: ./tools/Test-RepoConformance.ps1 -LocalPath . -StaticOnly
 
+  windows-signing:
+    name: windows-signing
+    runs-on: windows-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Lint and test Windows signing gates
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Install-Module PSScriptAnalyzer -RequiredVersion 1.25.0 -Scope CurrentUser -Force
+          Install-Module Pester -RequiredVersion 5.7.1 -Scope CurrentUser -Force
+          Import-Module PSScriptAnalyzer -RequiredVersion 1.25.0
+          Import-Module Pester -RequiredVersion 5.7.1
+          foreach ($path in @('tools/WindowsSigning.psm1', 'tools/WindowsSigning.Tests.ps1', 'tools/VelopackSigning.Tests.ps1'))
+          {
+             $findings = @(Invoke-ScriptAnalyzer -Path $path -Settings configs/shell/PSScriptAnalyzerSettings.psd1)
+             if ($findings.Count -gt 0) { $findings | Format-Table; throw "Script analysis failed: $path" }
+          }
+          $configuration = New-PesterConfiguration
+          $configuration.Run.Path = @('tools/WindowsSigning.Tests.ps1', 'tools/VelopackSigning.Tests.ps1')
+          $configuration.Run.Exit = $true
+          Invoke-Pester -Configuration $configuration
+
   release-please:
     name: release-please
-    needs: [security, codeql, docs, conformance]
+    needs: [security, codeql, docs, conformance, windows-signing]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.RELEASE_APP_CLIENT_ID != ''
     runs-on: ubuntu-24.04
     timeout-minutes: 10
