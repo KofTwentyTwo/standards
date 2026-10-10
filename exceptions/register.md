@@ -9,6 +9,7 @@ Open and closed exceptions to the KofTwentyTwo standards. The process is in
 | [EX-0002](#ex-0002) | Open | K22-REL-05 (Authenticode signing of Windows binaries) | Windows desktop apps (gclo, AppKit samples, future apps) | When the Azure Trusted Signing identity is validated, at the latest 2027-04-09 |
 | [EX-0003](#ex-0003) | Open | K22-DEP-02 (license allowlist) | gclo | Reviewed yearly, next on 2027-10-09 |
 | [EX-0004](#ex-0004) | Open | K22-CI-30, K22-REL-04 (shared release workflow) | gclo | When the shared reusable release workflow ships, at the latest 2027-04-09 |
+| [EX-0005](#ex-0005) | Open | K22-AI-10 (agents via PR only), K22-AI-11 (in part: unconfirmed pushes) | second-brain, nix, Praetor, Jellyfin | Reviewed yearly, next on 2027-10-10 |
 
 ## EX-0001
 
@@ -102,4 +103,43 @@ Open and closed exceptions to the KofTwentyTwo standards. The process is in
   publishes immutable releases with `SHA256SUMS`.
 - **Expires:** when the shared reusable release workflow ships and gclo calls it; at
   the latest 2027-04-09.
+- **Owner:** the maintainer.
+
+## EX-0005
+
+**Agents push directly to personal-automation repositories**
+
+- **Requirements:** `K22-AI-10` requires agents to work through pull requests only,
+  never pushing to a repository's primary branch. `K22-AI-11` in part: in the
+  repositories below, the agent permission mode auto-approves `git push` rather than
+  confirming each one (destructive and protected operations are still confirmed, see
+  compensating controls).
+- **Scope:** the Internal-tier personal-automation repositories where an agent's
+  direct push is the designed workflow: `KofTwentyTwo/second-brain` (agent memory
+  vault, `main`), `KofTwentyTwo/nix` (machine configuration, `main`),
+  `KofTwentyTwo/Praetor` (homelab infrastructure-as-code, `develop`), and
+  `KofTwentyTwo/Jellyfin` (media-stack configuration and docs, `main`).
+- **Reason:** these repositories are the agents' working medium, not reviewed product
+  code. The vault is written as durable memory many times a day; the nix and Praetor
+  repositories record machine and network state the operator has just applied and
+  verified in the same session. With a single maintainer (EX-0001) a pull request per
+  vault save or state snapshot would be self-merged seconds later — ceremony that
+  trains bypass habits without adding a reviewer.
+- **Risk:** a defective or manipulated agent commit lands on the primary branch
+  without a pull-request gate: corrupted memory notes, a broken machine configuration,
+  or drifted infrastructure definitions.
+- **Compensating controls:**
+  - the maintainer is present in the session and reviews the work product as it
+    happens; every push is reported with its commit hash;
+  - commits are signed through the 1Password SSH agent — a locked agent blocks
+    commits entirely, so nothing is written unattended;
+  - the destructive half of the IaC loop stays human-gated: the agent permission
+    classifier blocks `tofu apply` with pending changes in Praetor, and plans must
+    reach zero-drift;
+  - the nix repository's quality gates (`scripts/check-repo.sh`) run before push;
+  - the vault has a weekly consolidation job and retrieval eval auditing content
+    quality, and full git history makes any save revertible;
+  - no Product-tier repository is covered: product code still goes through pull
+    requests per `K22-AI-10`.
+- **Expires:** reviewed yearly, next on 2027-10-10.
 - **Owner:** the maintainer.
