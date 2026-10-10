@@ -15,7 +15,11 @@ changes or predict future maintenance.
 Keep the accepted risk visible; dismissal is not a claim that the missing second
 maintainer exists. Do not disable Scorecard or weaken protections. Reopen and
 reassess these dispositions when their assumptions change. The LOW best-practices
-badge and MEDIUM fuzzing recommendations remain open for follow-up.
+badge and MEDIUM fuzzing recommendations remain visible. The
+[badge assessment](best-practices.md) records deferred enrollment under EX-0007;
+[native parser fuzzing](fuzzing.md) now supplies generated security properties and
+regressions. Scorecard may not recognize this PowerShell harness; do not label a
+score of zero as proof that tests did not run or claim a supported integration.
 
 No OpenVEX statement is fabricated for these process findings: no vulnerable shipped
 component or exploit was identified. Any actual vulnerability present but not

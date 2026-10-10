@@ -38,7 +38,7 @@ this crosswalk is updated when it becomes final.
 | **PW.5** Create source code by adhering to secure coding practices | [Coding standards](../standards/coding/README.md), K22-AI-30 |
 | **PW.6** Configure build processes to improve executable security | Language profiles (warnings as errors, analyzers, deterministic builds), K22-CI-30 |
 | **PW.7** Review and/or analyze human-readable code | K22-SDLC-12, K22-CI-22 |
-| **PW.8** Test executable code | [Testing standard](../standards/testing.md) |
+| **PW.8** Test executable code | [Testing standard](../standards/testing.md), including K22-TEST-25 parser fuzzing where applicable |
 | **PW.9** Configure software to have secure settings by default | K22-SEC-70, K22-SEC-71 |
 | **RV.1** Identify and confirm vulnerabilities on an ongoing basis | K22-CI-21, K22-CI-22 (weekly scans), K22-DEP-40, K22-SEC-40 |
 | **RV.2** Assess, prioritize, and remediate vulnerabilities | K22-SEC-41, K22-SEC-42 |
@@ -72,4 +72,5 @@ Scorecard checks and the requirement that drives each:
 | Vulnerabilities | K22-SEC-41 |
 | Binary-Artifacts | K22-REPO-05 |
 | Packaging | K22-REL-11 |
-| Fuzzing | K22-TEST-23 (where applicable) |
+| Fuzzing | K22-TEST-25 (mandatory where applicable); K22-TEST-23 negative-test guidance. Detection supports selected integrations and can miss native harnesses |
+| CII-Best-Practices | K22-REPO-12 (public Product enrollment and maintained assessment); actual badge level is assigned by the provider |

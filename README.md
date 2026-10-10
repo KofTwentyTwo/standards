@@ -33,6 +33,10 @@ v1.0* once the checker passes on it.
    the [reusable workflows](#use-the-reusable-workflows), and keep it green with the
    [conformance checker](#check-a-repositorys-conformance).
 
+Security assurance is recorded in the [Best Practices assessment](docs/security/best-practices.md)
+and [parser fuzzing guide](docs/security/fuzzing.md). Badge enrollment is temporarily
+blocked under [EX-0007](exceptions/register.md#ex-0007); no passing badge is claimed.
+
 ## Contents
 
 - [How to use](#how-to-use)
@@ -197,13 +201,18 @@ IDE does on save is what CI checks.
    `protect-release-tags` rulesets, squash-only merging, the security features
    (private vulnerability reporting, secret scanning with push protection, Dependabot,
    code scanning, immutable releases), and read-only Actions tokens.
-6. **Check.** Run the conformance checker and fix every FAIL:
+6. **Assurance.** Complete `docs/security/assurance.json` and its evidence templates.
+   Public Product repositories register their own Best Practices assessment and
+   link the actual badge. Identify complex untrusted-input parsers; add their fuzz
+   commands to a required PR/main CI job and weekly/release campaigns, or document
+   why none apply. Review scope decisions; copied placeholders do not conform.
+7. **Check.** Run the conformance checker and fix every FAIL:
 
    ```powershell
    pwsh ./tools/Test-RepoConformance.ps1 -Repository KofTwentyTwo/<repo> -LocalPath ../<repo>
    ```
 
-7. **Declare it.** Add *"Conforms to KofTwentyTwo standards vX.Y"* to the README and
+8. **Declare it.** Add *"Conforms to KofTwentyTwo standards vX.Y"* to the README and
    list the repository in [MAINTAINERS.md](MAINTAINERS.md#repositories).
 
 ### An existing repository
