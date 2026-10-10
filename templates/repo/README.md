@@ -51,6 +51,11 @@ sha256sum --check SHA256SUMS
 ## Security
 
 Report vulnerabilities privately; see [SECURITY.md](SECURITY.md).
+Maintain the [Best Practices assessment](docs/security/best-practices.md) and
+[parser fuzzing assessment](docs/security/fuzzing.md), with their actual scope and
+configuration in [assurance.json](docs/security/assurance.json). After enrollment,
+insert the provider's actual linked badge here; placeholders do not demonstrate
+participation.
 
 ## Contributing
 

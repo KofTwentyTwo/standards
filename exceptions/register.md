@@ -11,6 +11,7 @@ Open and closed exceptions to the KofTwentyTwo standards. The process is in
 | [EX-0004](#ex-0004) | Open | K22-CI-30, K22-REL-04 (shared release workflow) | gclo | When the shared reusable release workflow ships, at the latest 2027-04-09 |
 | [EX-0005](#ex-0005) | Open | K22-AI-10 (agents via PR only), K22-AI-11 (in part: unconfirmed pushes) | second-brain, nix, Praetor, Jellyfin | Reviewed yearly, next on 2027-10-10 |
 | [EX-0006](#ex-0006) | Open | K22-CI-16 (tag-only environment secrets) | standards | 2027-04-10; review 2027-01-10 |
+| [EX-0007](#ex-0007) | Open | K22-REPO-12 (enrollment) | KofTwentyTwo/standards | 2026-11-10; review 2026-10-17 |
 
 ## EX-0001
 
@@ -169,3 +170,21 @@ Open and closed exceptions to the KofTwentyTwo standards. The process is in
 - **Expires:** 2027-04-10, or earlier when version proposals use credential federation.
 - **Owner:** the maintainer.
 - **Review date:** 2027-01-10.
+
+## EX-0007
+
+**Best Practices enrollment temporarily blocked by provider anti-spam**
+
+- **Requirements:** `K22-REPO-12` enrollment and the actual README badge only.
+- **Scope:** `KofTwentyTwo/standards`; no downstream repository is covered.
+- **Reason:** on 2026-10-10 the maintainer could not sign in because of the provider's
+  anti-spam restriction and explicitly deferred enrollment. No project ID exists.
+- **Risk:** consumers cannot inspect a registered provider assessment yet.
+- **Compensating controls:** publish the [criterion evidence](../docs/security/best-practices.md)
+  and pending answers; retain existing security/PR gates and parser fuzzing. Do not
+  claim participation or a passing badge. Retry normal login once the restriction
+  clears, register the exact repository URL, and close this exception through a PR.
+- **Expires:** 2026-11-10 (UTC), or successful enrollment and README badge publication,
+  whichever occurs first. **Review:** 2026-10-17.
+- **Owner:** @KofTwentyTwo. Approval is recorded by the normal exception-register PR;
+  this entry does not authorize bypassing CI or publishing an unreviewed assessment.

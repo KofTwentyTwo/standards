@@ -4,8 +4,9 @@
     Checks a repository against the KofTwentyTwo repository and CI/CD standards.
 
 .DESCRIPTION
-    Evaluates every automatable requirement in standards/repository.md (K22-REPO-*)
-    and standards/ci-cd.md (K22-CI-*) and prints one row per requirement:
+    Evaluates automatable requirements in standards/repository.md (K22-REPO-*),
+    standards/ci-cd.md (K22-CI-*), and the K22-TEST-25 fuzzing scope record, printing
+    one row per requirement:
 
         PASS      the requirement is met
         FAIL      a MUST is not met (or a SHOULD, reported as WARN instead)
@@ -45,6 +46,9 @@
 .PARAMETER SelfTest
     Run the checker's own unit tests and exit.
 
+.PARAMETER LoadHelpers
+    Load pure parser helpers for the fuzz harness without checking a repository.
+
 .EXAMPLE
     ./tools/Test-RepoConformance.ps1 -Repository KofTwentyTwo/AppKit -LocalPath ../AppKit
 
@@ -58,7 +62,8 @@ param(
     [switch] $StaticOnly,
     [string] $StandardsPath = (Split-Path -Parent $PSScriptRoot),
     [switch] $Json,
-    [switch] $SelfTest
+    [switch] $SelfTest,
+    [switch] $LoadHelpers
 )
 
 Set-StrictMode -Version Latest
@@ -72,7 +77,8 @@ $script:Levels = [ordered]@{
     'K22-REPO-01' = 'MUST';   'K22-REPO-02' = 'MUST';   'K22-REPO-03' = 'MUST'
     'K22-REPO-04' = 'MUST';   'K22-REPO-05' = 'MUST';   'K22-REPO-06' = 'MUST'
     'K22-REPO-07' = 'MUST';   'K22-REPO-08' = 'MUST';   'K22-REPO-09' = 'MUST'
-    'K22-REPO-10' = 'SHOULD'; 'K22-REPO-11' = 'SHOULD'; 'K22-REPO-20' = 'MUST'
+    'K22-REPO-10' = 'SHOULD'; 'K22-REPO-11' = 'SHOULD'; 'K22-REPO-12' = 'MUST'
+    'K22-TEST-25' = 'MUST';   'K22-REPO-20' = 'MUST'
     'K22-REPO-21' = 'MUST';   'K22-REPO-22' = 'MUST';   'K22-REPO-30' = 'MUST'
     'K22-REPO-31' = 'MUST';   'K22-REPO-32' = 'SHOULD'; 'K22-REPO-40' = 'MUST'
     'K22-REPO-41' = 'SHOULD'; 'K22-REPO-42' = 'MUST'
@@ -169,7 +175,7 @@ function Get-RunBlocks
         {
             $indent = $Matches[1].Length
             $rest = $Matches[2]
-            if ($rest -and $rest -notmatch '^[|>][+-]?\s*$')
+            if ($rest -and $rest -notmatch '^[|>](?:[1-9][+-]?|[+-][1-9]?|[+-]?)\s*(?:#.*)?$')
             {
                 [pscustomobject]@{ Line = $i + 1; Body = $rest }
                 continue
@@ -226,7 +232,7 @@ function Find-PersistedCheckout
     $lines = $Text -split "`r?`n"
     for ($i = 0; $i -lt $lines.Count; $i++)
     {
-        if ($lines[$i] -match '^(\s*)(-\s+)?uses:\s*actions/checkout@')
+        if ($lines[$i] -match '^(\s*)(-\s+)?uses:\s*["'']?actions/checkout@')
         {
             $stepIndent = $Matches[1].Length
             $ok = $false
@@ -263,6 +269,7 @@ function Read-ExceptionRegister
             Requirements = @($qualifiers.Keys)
             Qualifiers   = $qualifiers
             Scope        = $cells[3]
+            Expires      = if ($cells.Count -ge 5) { $cells[4] } else { '' }
         }
     }
 }
@@ -270,10 +277,18 @@ function Read-ExceptionRegister
 # Returns the open exception covering a requirement for a repository, or $null.
 function Find-Exception
 {
-    param([object[]] $Register, [string] $RequirementId, [string] $RepositoryName, [string[]] $Aspects = @())
+    param([object[]] $Register, [string] $RequirementId, [string] $RepositoryName, [string[]] $Aspects = @(), [datetime] $Today = [datetime]::UtcNow.Date)
     foreach ($ex in $Register)
     {
         if ($ex.Status -notmatch '^Open$') { continue }
+        # Review dates are not expiry dates. Enforce an explicit ISO expiry or an
+        # "at the latest" deadline; condition-only expiry still needs human review.
+        if ($ex.Expires -match '(?i)(?:^|at (?:the )?latest\s+)(\d{4}-\d{2}-\d{2})')
+        {
+            $deadline = [datetime]::MinValue
+            if (-not [datetime]::TryParseExact($Matches[1], 'yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::None, [ref] $deadline)) { continue }
+            if ($Today.Date -ge $deadline.Date) { continue }
+        }
         if ($ex.Requirements -notcontains $RequirementId) { continue }
         # A qualified exception covers a failure only when every failing aspect is
         # the qualified one.
@@ -285,12 +300,85 @@ function Find-Exception
         }
         $short = if ($RepositoryName) { ($RepositoryName -split '/')[-1] } else { '' }
         if ($ex.Scope -match '(?i)^all repositories' -or
-            ($short -and $ex.Scope -match "(?i)(^|[\s/,(])$([regex]::Escape($short))($|[\s,)])"))
+            ($RepositoryName -and $ex.Scope -match "(?i)(^|[\s,(])$([regex]::Escape($RepositoryName))($|[\s,)])") -or
+            ($short -and $ex.Scope -match "(?i)(^|[\s,(])$([regex]::Escape($short))($|[\s,)])"))
         {
             return $ex
         }
     }
     return $null
+}
+
+<#
+.SYNOPSIS
+Validate declared assurance evidence without executing commands or claiming certification.
+#>
+function Get-AssuranceCheck
+{
+   param([string] $Text, [string[]] $Paths, [hashtable] $Workflows, [string] $Readme)
+   try
+   {
+      $record = ConvertFrom-Json -InputObject $Text -AsHashtable -ErrorAction Stop
+      if ($record -isnot [System.Collections.IDictionary] -or $record['schemaVersion'] -isnot [long] -or $record['schemaVersion'] -ne 1) { throw 'unsupported schema' }
+   }
+   catch
+   {
+      foreach ($id in 'K22-REPO-12', 'K22-TEST-25')
+      {
+         [pscustomobject]@{ Id = $id; Status = 'FAIL'; Detail = 'missing or invalid docs/security/assurance.json (schemaVersion 1)'; Aspects = @('record') }
+      }
+      return
+   }
+   foreach ($pair in @(@('badge', 'K22-REPO-12'), @('fuzzing', 'K22-TEST-25')))
+   {
+      $kind, $id = $pair
+      $entry = $record[$kind]
+      $status, $detail, $aspect = 'FAIL', 'invalid assurance scope, rationale or evidence path', 'record'
+      if ($entry -is [System.Collections.IDictionary] -and
+         $entry['applicability'] -in @('required', 'not-applicable') -and
+         $entry['reason'] -is [string] -and -not [string]::IsNullOrWhiteSpace($entry['reason']) -and
+         $entry['evidence'] -is [string] -and $entry['evidence'] -cmatch '^docs/security/[A-Za-z0-9._/-]+\.md$' -and
+         $entry['evidence'] -notmatch '(^|/)\.\.?(/|$)' -and $Paths -ccontains $entry['evidence'])
+      {
+         if ($entry['applicability'] -eq 'not-applicable')
+         {
+            $status, $detail = 'REVIEW', "$kind scope declared not applicable; verify rationale and input/public-Product scope in $($entry.evidence)"
+         }
+         elseif ($kind -eq 'badge')
+         {
+            $aspect = 'enrollment'
+            $detail = 'badge enrollment missing; register this repository or obtain a dated enrollment exception'
+            if ($entry['projectUrl'] -is [string] -and $entry['projectUrl'] -cmatch '^https://www\.bestpractices\.dev/(?:en/)?projects/([1-9][0-9]*)/?$')
+            {
+               $projectId = $Matches[1]
+               $badgePattern = '\[!\[[^\]]*\]\(https://www\.bestpractices\.dev/projects/' + $projectId + '/badge\)\]\(https://www\.bestpractices\.dev/(?:en/)?projects/' + $projectId + '/?\)'
+               if ($Readme -cmatch $badgePattern)
+               {
+                  $status, $detail = 'REVIEW', "badge linked; verify $($entry.projectUrl) belongs to this repository, current answers and 90-day review in $($entry.evidence)"
+               }
+               else { $detail = 'README lacks the actual linked badge matching the declared project ID' }
+            }
+         }
+         else
+         {
+            $aspect = 'fuzzing'
+            $targets = @($entry['targets'])
+            $validTargets = $targets.Count -gt 0 -and @($targets | Where-Object {
+                  $_ -isnot [string] -or $_ -match '(^[/\\]|^[A-Za-z]:|(^|[/\\])\.\.?([/\\]|$))' -or $Paths -cnotcontains $_
+               }).Count -eq 0
+            $validWorkflow = $entry['workflow'] -is [string] -and $entry['workflow'] -cmatch '^\.github/workflows/[^/]+\.ya?ml$' -and $Workflows.ContainsKey($entry['workflow'])
+            $validCommand = $entry['command'] -is [string] -and -not [string]::IsNullOrWhiteSpace($entry['command']) -and $entry['command'] -notmatch '[\r\n]'
+            $runs = if ($validWorkflow) { @(Get-RunBlocks $Workflows[$entry['workflow']] | ForEach-Object Body) -join "`n" } else { '' }
+            $commandInRun = $validCommand -and $runs -cmatch ('(?m)^\s*' + [regex]::Escape($entry['command'].Trim()) + '(?:\s|$)')
+            if ($validTargets -and $validWorkflow -and $commandInRun)
+            {
+               $status, $detail = 'REVIEW', "fuzz targets and run command found; verify required PR/main gate, weekly/release budgets, properties and replay in $($entry.evidence)"
+            }
+            else { $detail = 'declared fuzz targets must exist and the command must begin a run line in the declared workflow' }
+         }
+      }
+      [pscustomobject]@{ Id = $id; Status = $status; Detail = $detail; Aspects = @($aspect) }
+   }
 }
 
 # Lock files expected for each manifest found (K22-REPO-09).
@@ -395,6 +483,8 @@ jobs:
     Assert ($inj[1].Expression -eq 'github.head_ref') 'injection: head_ref'
     $persisted = @(Find-PersistedCheckout $wf)
     Assert ($persisted.Count -eq 1 -and $persisted[0] -eq 9) "checkout: persisted ($($persisted -join ','))"
+    Assert (@(Find-PersistedCheckout "jobs:`n  check:`n    steps:`n      - uses: 'actions/checkout@v7'`n        with:`n          persist-credentials: true").Count -eq 1) 'checkout: quoted unsafe action'
+    Assert (@(Find-TemplateInjection "jobs:`n  check:`n    steps:`n      - run: |2 # explicit indentation`n          echo `${{ github.head_ref }}").Count -eq 1) 'injection: block scalar indentation and comment'
 
     $register = @"
 | ID | Status | Requirements | Scope | Expires |
@@ -416,6 +506,24 @@ jobs:
     Assert ($null -eq (Find-Exception $parsed 'K22-REPO-05' 'KofTwentyTwo/AppKit')) 'exception: closed'
     Assert ((Find-Exception $parsed 'K22-CODE-CS-03' 'KofTwentyTwo/AppKit').Id -eq 'EX-0004') 'exception: short name scope'
     Assert ($null -eq (Find-Exception $parsed 'K22-CODE-CS-03' 'KofTwentyTwo/AppKitExtras')) 'exception: no partial name match'
+    $expired = @(Read-ExceptionRegister '| [EX-0099](#ex-0099) | Open | K22-REPO-12 | standards | 2026-11-10; review 2026-10-17 |')
+    Assert ($null -ne (Find-Exception $expired 'K22-REPO-12' 'standards' -Today ([datetime] '2026-11-09'))) 'exception: valid before deadline'
+    Assert ($null -eq (Find-Exception $expired 'K22-REPO-12' 'standards' -Today ([datetime] '2026-11-10'))) 'exception: expiry cannot silently authorize failure'
+    $exactScope = @(Read-ExceptionRegister '| [EX-0099](#ex-0099) | Open | K22-REPO-12 | KofTwentyTwo/standards | 2099-01-01 |')
+    Assert ($null -eq (Find-Exception $exactScope 'K22-REPO-12' 'AnotherOwner/standards')) 'exception: explicit owner scope cannot match another owner'
+    Assert (@(Get-AssuranceCheck '{}' @() @{} '').Count -eq 2) 'assurance: missing schema returns both failures'
+    Assert (@(Get-AssuranceCheck '{"schemaVersion":true}' @() @{} '' | Where-Object Status -eq 'FAIL').Count -eq 2) 'assurance: boolean cannot masquerade as schema version 1'
+    Assert (@(Get-AssuranceCheck '{"schemaVersion":1,"badge":{},"fuzzing":{}}' @() @{} '' | Where-Object Status -eq 'FAIL').Count -eq 2) 'assurance: incomplete entries fail without crashing'
+    $assurance = '{"schemaVersion":1,"badge":{"applicability":"required","reason":"public Product","projectUrl":"https://www.bestpractices.dev/projects/123","evidence":"docs/security/best-practices.md"},"fuzzing":{"applicability":"required","reason":"parser","targets":["tools/parser.ps1"],"command":"./tools/fuzz.ps1","workflow":".github/workflows/ci.yml","evidence":"docs/security/fuzzing.md"}}'
+    $assurancePaths = @('tools/parser.ps1', 'docs/security/best-practices.md', 'docs/security/fuzzing.md')
+    $assuranceWorkflow = @{ '.github/workflows/ci.yml' = "jobs:`n  tests:`n    steps:`n      - run: ./tools/fuzz.ps1 -Iterations 10" }
+    $assuranceReadme = '[![Best Practices](https://www.bestpractices.dev/projects/123/badge)](https://www.bestpractices.dev/projects/123)'
+    $assuranceRows = @(Get-AssuranceCheck $assurance $assurancePaths $assuranceWorkflow $assuranceReadme)
+    Assert (@($assuranceRows | Where-Object Status -ne 'REVIEW').Count -eq 0) 'assurance: evidence needs human verification, never fabricated certification'
+    Assert (@(Get-AssuranceCheck $assurance $assurancePaths $assuranceWorkflow '' | Where-Object { $_.Id -eq 'K22-REPO-12' -and $_.Status -eq 'FAIL' }).Count -eq 1) 'assurance: missing badge fails'
+    $assuranceWorkflow['.github/workflows/ci.yml'] = "jobs:`n  tests:`n    steps:`n      - run: |`n          # ./tools/fuzz.ps1"
+    Assert (@(Get-AssuranceCheck $assurance $assurancePaths $assuranceWorkflow $assuranceReadme | Where-Object { $_.Id -eq 'K22-TEST-25' -and $_.Status -eq 'FAIL' }).Count -eq 1) 'assurance: comment does not execute a fuzz command'
+    Assert (@(Get-AssuranceCheck ($assurance.Replace('tools/parser.ps1', '../parser.ps1')) $assurancePaths $assuranceWorkflow $assuranceReadme | Where-Object { $_.Id -eq 'K22-TEST-25' -and $_.Status -eq 'FAIL' }).Count -eq 1) 'assurance: traversal paths cannot satisfy targets'
 
     Assert (@(Get-MissingLocks @('src/a/a.csproj', 'README.md')) -contains 'NuGet (packages.lock.json)') 'locks: missing nuget'
     Assert (@(Get-MissingLocks @('src/a/a.csproj', 'src/a/packages.lock.json')).Count -eq 0) 'locks: nuget ok'
@@ -450,6 +558,7 @@ jobs:
     exit 0
 }
 
+if ($LoadHelpers) { return }
 if ($SelfTest) { Invoke-SelfTest }
 
 # =================================================================================
@@ -534,6 +643,13 @@ function Find-FirstPath
 }
 
 $repoName = if ($Repository) { $Repository } else { Split-Path -Leaf $script:LocalRoot }
+if (-not $Repository)
+{
+    # Local static checks can identify exact exception scope without contacting
+    # GitHub. A clone with no canonical GitHub origin keeps its directory name.
+    $origin = & git -C $script:LocalRoot remote get-url origin 2>$null
+    if ($LASTEXITCODE -eq 0 -and $origin -match '^(?:https://github\.com/|git@github\.com:|ssh://git@(?:github\.com(?::22)?|ssh\.github\.com:443)/)([^/]+/[^/]+?)(?:\.git)?$') { $repoName = $Matches[1] }
+}
 
 # =================================================================================
 # Static checks: required files (K22-REPO-01 .. 11)
@@ -661,6 +777,15 @@ $workflowPaths = @($script:Paths | Where-Object { $_ -match '^\.github/workflows
 $workflows = @{}
 foreach ($p in $workflowPaths) { $workflows[$p] = Get-FileText $p }
 $allWorkflowText = ($workflows.Values -join "`n")
+
+# Assurance records fail closed when required evidence is absent. A positive static
+# check is REVIEW: identity, applicability and actual CI execution need verification.
+$assuranceReadme = if ($readmePath) { Get-FileText $readmePath } else { '' }
+if ($assuranceReadme -match '(?im)\bTier(?:\*\*)?\s*[:|]\s*(?:\*\*)?\s*Internal\b') { $script:Levels['K22-REPO-12'] = 'SHOULD' }
+foreach ($check in Get-AssuranceCheck (Get-FileText 'docs/security/assurance.json') $script:Paths $workflows $assuranceReadme)
+{
+    Add-Result $check.Id $check.Status $check.Detail $check.Aspects
+}
 
 function Test-Calls
 {

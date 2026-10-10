@@ -80,3 +80,29 @@ release checklist.
 applications expose a data-directory override (for example an environment variable)
 that tests use.
 *Why:* running tests must be safe on any machine. *Verified by:* review.
+
+## Parser fuzzing
+
+**K22-TEST-25 (MUST)** Repositories with complex parsers of untrusted input (including
+workflow, configuration, protocol, archive, and document parsers) maintain fuzz
+targets for those boundaries. Use coverage-guided fuzzing where supported; otherwise
+use generated or mutated inputs with independent security properties. A crash-only
+smoke test is insufficient when acceptance of unsafe input is the relevant failure.
+
+Run bounded campaigns in a merge-gating CI job on every PR and push to `main`, and
+longer campaigns at least weekly and before each MINOR or MAJOR release. Document
+targets, input limits, invariants, a local replay command, seeds or corpus, CI job,
+and failure handling in `docs/security/fuzzing.md`; declare the evidence, targets,
+command and workflow in `docs/security/assurance.json`. Preserve minimized failures
+as regression tests and fix or triage them before merging. Never execute generated
+attacker scripts, use real secrets, or write to a user's profile.
+
+Repositories without a complex untrusted-input parser document that decision and
+its rationale in the same files; review applicability when input boundaries change
+and at least every 90 days. Documentation-only status does not exempt shipped tooling.
+*Why:* malformed inputs can cause unsafe acceptance as well as crashes; repeatable
+fuzzing exercises combinations ordinary examples miss. *Verified by:* conformance
+checker (scope record, target paths, command and CI reference); required CI execution
+and review of properties, corpus and applicability. See the
+[native PowerShell example](../docs/security/fuzzing.md). Scorecard recognition is
+useful evidence, but is not a substitute for running appropriate targets.

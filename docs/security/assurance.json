@@ -1,0 +1,17 @@
+{
+   "schemaVersion": 1,
+   "badge": {
+      "applicability": "required",
+      "reason": "Public open-source Product repository distributing standards and executable tooling.",
+      "projectUrl": null,
+      "evidence": "docs/security/best-practices.md"
+   },
+   "fuzzing": {
+      "applicability": "required",
+      "reason": "The conformance checker parses contributor-controlled workflows and exception records; unsafe acceptance can hide failed requirements.",
+      "targets": ["tools/Test-RepoConformance.ps1"],
+      "command": "./tools/Test-RepoConformance.Fuzz.ps1",
+      "workflow": ".github/workflows/ci.yml",
+      "evidence": "docs/security/fuzzing.md"
+   }
+}
