@@ -11,7 +11,7 @@ reusable GitHub Actions workflows, repository templates, and a conformance check
 
 ## Status
 
-> **Draft, before the first release (`v1.0.0`).** The requirements are written and the
+> **Draft standards, before `v1.0.0`.** The requirements are written and the
 > enforcement tooling exists, but no KofTwentyTwo repository has been verified against
 > them yet; adoption starts with this repository, then
 > [AppKit](https://github.com/KofTwentyTwo/AppKit) and
@@ -308,7 +308,6 @@ Download a versioned ZIP or tar.gz standards bundle from
 the repository layout, include checksums and provenance attestations, and become
 immutable on publication. See [bundle releases](docs/releases.md) for semantic version
 proposals, maintainer setup, publishing, verification, and local reproduction.
-The first bundle has not been published yet.
 
 - This repository is versioned with [Semantic Versioning](https://semver.org). A new
   **MUST** that existing repositories do not meet is a MAJOR release; read its release

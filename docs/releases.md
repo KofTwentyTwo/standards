@@ -12,8 +12,8 @@ or copy its configs and templates into another repository.
 
 [Release Please](https://github.com/googleapis/release-please) opens and updates a
 release PR after successful `main` CI, changing `version.txt`, `CHANGELOG.md`, and
-`.release-please-manifest.json`. The first proposal is `0.1.0`; `0.0.0` currently means
-unreleased. The tag is the published version's authority; the files are checked
+`.release-please-manifest.json`. The first proposal is `0.1.0`; `0.0.0` is the
+unreleased bootstrap placeholder. The tag is the published version's authority; the files are checked
 against it before packaging.
 
 | Commit or squash PR title | Bump | Example |

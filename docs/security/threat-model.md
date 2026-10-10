@@ -78,4 +78,6 @@ trust boundaries change.
   no published assets. Highest-impact threat is a compromised credential or upstream
   Action; restricted environments, scoped installation, reviewed SHA pins, and
   required PR gates limit its reach. Provisioning and live checks are recorded in
-  the first-release checklist.
+  the first-release checklist. Existing Scorecard process findings are recorded in
+  [their dispositions](scorecard-dispositions.md); EX-0001 retains the accepted
+  single-maintainer risk.
