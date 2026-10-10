@@ -44,7 +44,9 @@ if($committedVersion -ne $Version -or $releaseManifest['.'] -ne $Version)
 
 $changelog = (git -C $repository show "${commit}:CHANGELOG.md") -join "`n"
 $escapedVersion = [regex]::Escape($Version)
-$section = [regex]::Match($changelog, "(?ms)^## (?:\[$escapedVersion\](?:\([^\r\n]*\))?|$escapedVersion)(?=\s|$)[^\r\n]*\r?\n.*?(?=^## |\z)")
+# Native release-note categories also use H2; only a version heading ends a release.
+$releaseHeading = '^## (?:\[\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?\](?:\([^\r\n]*\))?|\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)(?=\s|$)'
+$section = [regex]::Match($changelog, "(?ms)^## (?:\[$escapedVersion\](?:\([^\r\n]*\))?|$escapedVersion)(?=\s|$)[^\r\n]*\r?\n.*?(?=$releaseHeading|\z)")
 if(-not $section.Success)
 {
    throw "CHANGELOG.md has no release notes for $Version at $commit."

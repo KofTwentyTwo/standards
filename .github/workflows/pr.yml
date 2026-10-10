@@ -52,6 +52,7 @@ jobs:
       - name: PR title is a Conventional Commit header
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           # The title becomes the squash commit subject on main (K22-REPO-22), so it
           # must be a valid Conventional Commits 1.0 header of at most 100 characters.
@@ -65,6 +66,15 @@ jobs:
             printf 'Title was: %s\n' "$PR_TITLE"
             exit 1
           fi
+          node - <<'NODE'
+          const emoji = /\p{Emoji_Presentation}|[\u2600-\u27BF]|\p{Extended_Pictographic}\uFE0F|[#*0-9]\uFE0F?\u20E3/u;
+          for (const [field, text] of [['title', process.env.PR_TITLE], ['description', process.env.PR_BODY || '']]) {
+            if (emoji.test(text)) {
+              console.error(`::error title=Unprofessional pull request::The ${field} contains an emoji; use professional text.`);
+              process.exit(1);
+            }
+          }
+          NODE
           echo "PR title OK"
 
   dco:

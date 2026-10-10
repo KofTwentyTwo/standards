@@ -22,7 +22,7 @@ picks them up on open: *Settings → Editor → Code Style* shows **Project** se
 
 ## Per IDE (all projects)
 
-1. **Code style:** *Settings → Editor → Code Style → ⚙ (Show Scheme Actions) → Import
+1. **Code style:** *Settings → Editor → Code Style → Show Scheme Actions → Import
    Scheme → IntelliJ IDEA code style XML* → choose `Kingsrook_Code_Style.xml`.
 2. **Reformat on save:** *Settings → Tools → Actions on Save* → enable **Reformat code**
    and **Optimize imports**.

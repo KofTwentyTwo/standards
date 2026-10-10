@@ -22,6 +22,8 @@ themselves: everything below comes from the [SDLC policy](policies/sdlc.md).
 
 ## What a good change looks like
 
+- Use professional wording in code comments, documentation, commit/PR messages,
+  release notes and automation output. No emojis, joke copy or bot sound effects.
 - A new or changed requirement follows the format in
   [policies/README.md](policies/README.md#requirement-ids): an ID that has never been used,
   a level, the rule, *Why*, and *Verified by*. A requirement nobody can verify is not

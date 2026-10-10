@@ -63,6 +63,14 @@ Future notes.
 
 Current notes.
 
+## Changes
+
+Native category notes.
+
+## Breaking changes
+
+Current breaking details.
+
 ## 1.2.2
 
 Older notes.
@@ -100,6 +108,7 @@ $manifest = Get-Content -LiteralPath (Join-Path $first "$prefix.manifest.json") 
 Test-Condition ($manifest.version -eq '1.2.3' -and $manifest.commit -eq (git -C $source rev-parse HEAD)) 'manifest identifies version and exact source commit'
 $notes = Get-Content -LiteralPath (Join-Path $first "$prefix.notes.md") -Raw
 Test-Condition ($notes -match 'Current notes' -and $notes -notmatch 'Older notes|Future notes' -and $notes.Contains($checklist)) 'notes contain only this release and its checklist'
+Test-Condition ($notes -match 'Native category notes' -and $notes -match 'Current breaking details') 'notes preserve native H2 categories within a release'
 foreach($file in (Get-ChildItem -LiteralPath $first -File))
 {
    Test-Condition ((Get-FileHash -LiteralPath $file.FullName).Hash -eq (Get-FileHash -LiteralPath (Join-Path $second $file.Name)).Hash) "$($file.Name) is reproducible"
@@ -115,6 +124,14 @@ Test-Exception { & $builder -Version '1.2.4' -RepositoryPath $source -OutputPath
 Test-Exception { & $builder -Version '01.2.3' -RepositoryPath $source } 'ValidatePattern|validation|pattern'
 Test-Exception { & $builder -Version '1.2.3' -RepositoryPath $source -OutputPath $first } 'already exists'
 Test-Exception { & $builder -Version '1.2.3' -RepositoryPath $source -OutputPath (Join-Path $fixtureRoot 'invalid-url') -ChecklistUrl 'http://example.com/123' } 'GitHub issue URL'
+$nativeChangelog = (Get-Content -LiteralPath (Join-Path $source 'CHANGELOG.md') -Raw).Replace('## [1.2.3](https://example.com/current)', '## 1.2.3')
+Set-Content -LiteralPath (Join-Path $source 'CHANGELOG.md') -Value $nativeChangelog
+git -C $source add -- CHANGELOG.md
+git -C $source -c user.name=Fixture -c user.email=fixture@example.invalid -c commit.gpgsign=false commit --quiet -m 'test: native release heading fixture'
+$nativeOutput = Join-Path $fixtureRoot 'native-headings'
+& $builder -Version '1.2.3' -RepositoryPath $source -OutputPath $nativeOutput
+$nativeNotes = Get-Content -LiteralPath (Join-Path $nativeOutput "$prefix.notes.md") -Raw
+Test-Condition ($nativeNotes -match 'Native category notes' -and $nativeNotes -match 'Current breaking details' -and $nativeNotes -notmatch 'Older notes|Future notes') 'native unlinked version heading retains only its release categories'
 Set-Content -LiteralPath (Join-Path $source 'CHANGELOG.md') -Value '# Changelog without release notes'
 git -C $source add -- CHANGELOG.md
 git -C $source -c user.name=Fixture -c user.email=fixture@example.invalid -c commit.gpgsign=false commit --quiet -m 'test: missing release notes fixture'

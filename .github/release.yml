@@ -1,0 +1,12 @@
+# Plain-language categories for native GitHub release notes.
+changelog:
+  exclude:
+    labels:
+      - "autorelease: pending"
+      - "autorelease: tagged"
+      - "autorelease: failed"
+  categories:
+    - title: Breaking changes
+      labels: [breaking]
+    - title: Changes
+      labels: ["*"]
