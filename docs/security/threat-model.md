@@ -71,6 +71,12 @@ trust boundaries change.
 
 ## Review log
 
+- **2026-10-10, v0.1.2:** Reviewed the explicit reusable-workflow secret contract
+  after the unpublished v0.1.1 publisher failed. Only the named App key is passed;
+  its value remains restricted to the reviewer-protected tag environment. Nested
+  CI receives no secrets, and permissions, interfaces, and recovery boundaries
+  remain unchanged. Failed version tags stay reserved.
+
 - **2026-10-10, v0.1.0:** Reviewed source-only packaging, release-PR validation,
   preflight approval, App token scopes, environment restrictions, provenance, and
   immutable publication. Main and tag protections remain in place. Most likely

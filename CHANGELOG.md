@@ -6,6 +6,11 @@
 
 ## [0.1.2](https://github.com/KofTwentyTwo/standards/compare/v0.1.1...v0.1.2) (2026-10-10)
 
+First published standards bundle: policies, language profiles, architectures,
+configs, reusable workflows, templates, and tooling. The earlier `0.1.0` and
+`0.1.1` versions were never published; their signed tags remain reserved after
+the workflow failures documented below.
+
 
 ### Bug Fixes
 

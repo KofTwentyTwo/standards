@@ -73,9 +73,9 @@ and Release Please actions are pinned and tracked by Dependabot. See the
 
    ```bash
    git fetch origin main
-   git tag -s v0.1.0 <release-pr-merge-sha> \
+   git tag -s v0.1.2 <release-pr-merge-sha> \
      -m "Release checklist: https://github.com/KofTwentyTwo/standards/issues/123"
-   git push origin v0.1.0
+   git push origin v0.1.2
    ```
 
 4. The tag workflow validates ancestry, version files, the pending release PR, and
@@ -97,10 +97,10 @@ Every release includes `KofTwentyTwo-standards-<version>.zip`, `.tar.gz`,
 and license split. Download assets from a specific version, then verify:
 
 ```bash
-gh release download v0.1.0 --repo KofTwentyTwo/standards --dir standards-0.1.0
-cd standards-0.1.0
+gh release download v0.1.2 --repo KofTwentyTwo/standards --dir standards-0.1.2
+cd standards-0.1.2
 sha256sum --check SHA256SUMS
-gh attestation verify KofTwentyTwo-standards-0.1.0.zip --repo KofTwentyTwo/standards
+gh attestation verify KofTwentyTwo-standards-0.1.2.zip --repo KofTwentyTwo/standards
 ```
 
 On Windows, compare `Get-FileHash -Algorithm SHA256` to the corresponding entry in
@@ -110,7 +110,7 @@ version comment; do not use a moving branch or tag as a workflow pin.
 To reproduce from a checkout containing the release commit:
 
 ```powershell
-pwsh tools/Build-StandardsPackage.ps1 -Version 0.1.0 -Ref v0.1.0 -OutputPath artifacts/rebuild-0.1.0
+pwsh tools/Build-StandardsPackage.ps1 -Version 0.1.2 -Ref v0.1.2 -OutputPath artifacts/rebuild-0.1.2
 pwsh tools/Test-StandardsPackage.ps1
 ```
 
