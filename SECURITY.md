@@ -17,7 +17,7 @@ conformance check that passes when it should fail.
 | Fix released | Critical 7 days, High 30 days, Medium 90 days, Low next release, from confirmation |
 | Public disclosure | coordinated with the reporter; by default 90 days after the report, sooner once fixed |
 
-Until this repository's first release (`v1.0.0`) these timeframes are targets the
+Before `v1.0.0` these timeframes are targets the
 maintainer works to; from `v1.0.0` they are commitments.
 
 Fixed vulnerabilities are published as GitHub Security Advisories with a CVE. These

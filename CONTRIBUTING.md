@@ -35,6 +35,22 @@ themselves: everything below comes from the [SDLC policy](policies/sdlc.md).
 
 ## Running the checks locally
 
+Documentation and package checks:
+
+```powershell
+npx markdownlint-cli2 "**/*.md"
+lychee --offline --include-fragments --no-progress './**/*.md'
+pwsh tools/Test-RepoConformance.ps1 -SelfTest
+pwsh tools/Test-StandardsPackage.ps1
+pwsh tools/Test-RepoConformance.ps1 -LocalPath . -StaticOnly
+```
+
+Package tests use an isolated temporary Git fixture; they do not commit changes in
+this repository. For version proposals and release bundles, see
+[bundle releases](docs/releases.md).
+
+Workflow and security checks:
+
 ```powershell
 zizmor .github/workflows
 actionlint

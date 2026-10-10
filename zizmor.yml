@@ -7,3 +7,5 @@ rules:
     # not yet understood by actionlint 1.7.12, which is also a required gate.
     ignore:
       - ci.yml
+      - release.yml
+      - release-standards.yml

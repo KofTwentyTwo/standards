@@ -1,0 +1,175 @@
+name: release-standards
+
+on:
+  workflow_call:
+
+permissions: {}
+
+jobs:
+  validate:
+    name: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    outputs:
+      version: ${{ steps.tag.outputs.version }}
+      checklist: ${{ steps.tag.outputs.checklist }}
+      pr: ${{ steps.tag.outputs.pr }}
+    steps:
+      - name: Checkout tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate version, main ancestry, and checklist
+        id: tag
+        env:
+          TAG: ${{ github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF" == refs/tags/v* ]]
+          [[ "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || {
+            echo '::error::Standards bundles require a stable vMAJOR.MINOR.PATCH tag.'
+            exit 1
+          }
+          git merge-base --is-ancestor HEAD origin/main
+          version="${TAG#v}"
+          [[ "$(cat version.txt)" == "$version" ]]
+          [[ "$(jq -r '."."' .release-please-manifest.json)" == "$version" ]]
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          commit="$(git rev-parse HEAD)"
+          pr="$(gh api "repos/$GH_REPO/commits/$commit/pulls" | jq -r --arg sha "$commit" '.[] | select(.merge_commit_sha == $sha and .merged_at != null and .base.ref == "main" and any(.labels[]; .name == "autorelease: pending")) | .number')"
+          [[ "$pr" =~ ^[1-9][0-9]*$ ]] || {
+            echo '::error::Tag the merge commit of the pending release PR.'
+            exit 1
+          }
+          echo "pr=$pr" >> "$GITHUB_OUTPUT"
+          # Preflight is approved before tagging; shipping checks follow publication.
+          checklist=''
+          if [[ "$version" == *.0 ]]; then
+            annotation="$(git for-each-ref --format='%(contents)' "refs/tags/$TAG")"
+            prefix="https://github.com/$GH_REPO/issues/"
+            checklist="$(printf '%s\n' "$annotation" | grep -F 'Release checklist: ' | head -n 1 | sed 's/^Release checklist: //')"
+            [[ "$checklist" == "$prefix"* ]]
+            issue="${checklist#"$prefix"}"
+            [[ "$issue" =~ ^[1-9][0-9]*$ ]]
+            gh api "repos/$GH_REPO/issues/$issue" | jq -e \
+              '.pull_request == null and any(.labels[]; .name == "release: ready")' >/dev/null
+          fi
+          echo "checklist=$checklist" >> "$GITHUB_OUTPUT"
+
+  gates:
+    name: gates
+    needs: validate
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+      security-events: write
+
+  build:
+    name: build
+    needs: [validate, gates]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Checkout tagged source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build committed standards bundle
+        shell: pwsh
+        env:
+          K22_VERSION: ${{ needs.validate.outputs.version }}
+          RELEASE_CHECKLIST: ${{ needs.validate.outputs.checklist }}
+        run: ./tools/Build-StandardsPackage.ps1 -Version $env:K22_VERSION -ChecklistUrl $env:RELEASE_CHECKLIST
+
+      - name: Attest every release asset
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: artifacts/standards/*
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: standards-release-assets
+          path: artifacts/standards/*
+          if-no-files-found: error
+
+  publish:
+    name: publish
+    needs: [validate, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: standards-release-assets
+          path: release
+
+      - name: Settings read token
+        id: app
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-administration: read
+
+      - name: Require immutable releases
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          [[ "$(gh api "repos/$GH_REPO/immutable-releases" --jq '.enabled')" == true ]]
+
+      - name: Create draft with all assets
+        working-directory: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          K22_VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          set -euo pipefail
+          sha256sum --check SHA256SUMS
+          # Creation fails if this tag already has a release. Never replace assets.
+          gh release create "$TAG" --draft --verify-tag \
+            --title "KofTwentyTwo standards $K22_VERSION" \
+            --notes-file "KofTwentyTwo-standards-$K22_VERSION.notes.md" ./*
+
+      - name: Publish immutable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          gh release edit "$TAG" --draft=false
+          [[ "$(gh api "repos/$GH_REPO/releases/tags/$TAG" --jq '.immutable')" == true ]]
+
+      # Release Please will not propose another version while a merged PR is pending.
+      - name: Mark the release PR as published
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ needs.validate.outputs.pr }}
+        run: |
+          set -euo pipefail
+          gh label create 'autorelease: tagged' --color 0e8a16 --force
+          gh pr edit "$PR_NUMBER" --remove-label 'autorelease: pending' --add-label 'autorelease: tagged'
