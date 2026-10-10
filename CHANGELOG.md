@@ -4,6 +4,18 @@
 <!-- markdownlint-disable MD012 -->
 <!-- markdownlint-configure-file { "MD024": { "siblings_only": true } } -->
 
+## [0.1.2](https://github.com/KofTwentyTwo/standards/compare/v0.1.1...v0.1.2) (2026-10-10)
+
+First published standards bundle: policies, language profiles, architectures,
+configs, reusable workflows, templates, and tooling. The earlier `0.1.0` and
+`0.1.1` versions were never published; their signed tags remain reserved after
+the workflow failures documented below.
+
+
+### Bug Fixes
+
+* **releases:** declare the protected environment secret contract ([#15](https://github.com/KofTwentyTwo/standards/issues/15)) ([08b5ac8](https://github.com/KofTwentyTwo/standards/commit/08b5ac84a7b4d0a06d0b4c5f3ba9e643799084ad))
+
 ## 0.1.1 (2026-10-10) — unpublished
 
 The bundle passed CI, checksums, and all five provenance checks, but publication
