@@ -3,7 +3,7 @@
    "badge": {
       "applicability": "required",
       "reason": "Public open-source Product repository distributing standards and executable tooling.",
-      "projectUrl": null,
+      "projectUrl": "https://www.bestpractices.dev/projects/15366",
       "evidence": "docs/security/best-practices.md"
    },
    "fuzzing": {

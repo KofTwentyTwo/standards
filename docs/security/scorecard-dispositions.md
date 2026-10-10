@@ -14,10 +14,12 @@ changes or predict future maintenance.
 
 Keep the accepted risk visible; dismissal is not a claim that the missing second
 maintainer exists. Do not disable Scorecard or weaken protections. Reopen and
-reassess these dispositions when their assumptions change. The LOW best-practices
-badge and MEDIUM fuzzing recommendations remain visible. The
-[badge assessment](best-practices.md) records deferred enrollment under EX-0007;
-[native parser fuzzing](fuzzing.md) now supplies generated security properties and
+reassess these dispositions when their assumptions change. The
+[badge assessment](best-practices.md) records the passing badge for
+[project 15366](https://www.bestpractices.dev/projects/15366), earned on 2026-10-10;
+EX-0007 is closed. Let the next Scorecard scan reassess the badge finding rather
+than claiming a new score before it runs. The MEDIUM fuzzing recommendation remains
+visible: [native parser fuzzing](fuzzing.md) supplies generated security properties and
 regressions. Scorecard may not recognize this PowerShell harness; do not label a
 score of zero as proof that tests did not run or claim a supported integration.
 

@@ -7,6 +7,7 @@ reusable GitHub Actions workflows, repository templates, and a conformance check
 
 [![Docs: CC BY 4.0](https://img.shields.io/badge/docs-CC%20BY%204.0-lightgrey)](LICENSE-docs)
 [![Code: MIT](https://img.shields.io/badge/code-MIT-green)](LICENSE)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15366/badge)](https://www.bestpractices.dev/projects/15366)
 [![Status: draft](https://img.shields.io/badge/status-draft%20(pre--1.0)-orange)](#status)
 
 ## Status
@@ -34,8 +35,9 @@ v1.0* once the checker passes on it.
    [conformance checker](#check-a-repositorys-conformance).
 
 Security assurance is recorded in the [Best Practices assessment](docs/security/best-practices.md)
-and [parser fuzzing guide](docs/security/fuzzing.md). Badge enrollment is temporarily
-blocked under [EX-0007](exceptions/register.md#ex-0007); no passing badge is claimed.
+and [parser fuzzing guide](docs/security/fuzzing.md). The repository earned the
+[OpenSSF Best Practices passing badge](https://www.bestpractices.dev/projects/15366)
+on 2026-10-10 through a maintainer self-assessment.
 
 ## Contents
 
