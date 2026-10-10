@@ -3,28 +3,31 @@
 ## Enrollment and review
 
 **Repository:** <https://github.com/KofTwentyTwo/standards>. **Owner:** @KofTwentyTwo.
-**Prepared:** 2026-10-10. **Enrollment review:** 2026-10-17; **exception expiry:**
-2026-11-10 ([EX-0007](../../exceptions/register.md#ex-0007)). Once enrolled, reassess
-within 90 days and before each MINOR or MAJOR release.
+**Assessment:** [project 15366](https://www.bestpractices.dev/en/projects/15366/passing).
+**Level:** Passing. **Reviewed and earned:** 2026-10-10.
+**Next review:** 2027-01-08, or before the next MINOR or MAJOR release, whichever
+occurs first. Reassess at least every 90 days.
 
-The maintainer reported an anti-spam login restriction and deferred enrollment.
-There is no registered project ID, submitted assessment, progress percentage, or
-passing badge. The table below is prepared evidence for the current
-[passing criteria](https://www.bestpractices.dev/en/criteria/0), not certification.
-Use those criterion IDs in the provider's form; answers still require owner review.
+The public assessment identifies this repository and displays the passing badge.
+The maintainer completed the self-assessment, including personal attestations.
+This badge records voluntary maintainer self-certification.
+The enrollment-only exception [EX-0007](../../exceptions/register.md#ex-0007) is
+closed with the actual README badge and project URL recorded in
+[assurance.json](assurance.json).
 
 ## Criterion evidence matrix
 
 IDs below omit the provider's `0.` level prefix. **Evidence** means source exists;
-**Review** means operational evidence or human judgment is still needed;
-**Proposed N/A** needs the provider's applicability rules and owner approval.
+**Review** marks ongoing operational evidence or human judgment to revalidate;
+**Proposed N/A** preserves applicability reasoning for the next review. These are
+local evidence notes; the linked public assessment holds the submitted answers.
 
-| Criteria | Prepared evidence / remaining decision | State |
+| Criteria | Evidence and ongoing review | State |
 | --- | --- | --- |
 | `description_good`, `documentation_basics` | [README](../../README.md) describes standards, tooling and adoption | Evidence |
 | `interact`, `discussion`, `report_process`, `report_tracker`, `report_archive` | Public [issues](https://github.com/KofTwentyTwo/standards/issues), templates and [CONTRIBUTING](../../CONTRIBUTING.md) | Evidence |
 | `contribution`, `contribution_requirements` | CONTRIBUTING documents proposals, signed commits, DCO, review and gates | Evidence |
-| `floss_license`, `floss_license_osi`, `license_location` | Root [MIT](../../LICENSE) for code, configs and templates; [CC BY 4.0](../../LICENSE-docs) for prose. Explain the separate documentation license | Evidence |
+| `floss_license`, `floss_license_osi`, `license_location` | Root [MIT](../../LICENSE) for code, configs and templates; [CC BY 4.0](../../LICENSE-docs) for prose; attributed Apache-2.0 material in [NOTICE](../../NOTICE) | Evidence |
 | `documentation_interface` | [Tool help and local commands](../../CONTRIBUTING.md#running-the-checks-locally), [release instructions](../releases.md); owner checks shipped tools' help completeness | Review |
 | `sites_https`, `delivery_mitm` | GitHub repository and release delivery use HTTPS; [verification](../../standards/releases.md#verifying-a-release) checks provenance | Evidence |
 | `english` | Repository documentation and contribution guidance are in English | Evidence |
@@ -33,13 +36,14 @@ IDs below omit the provider's `0.` level prefix. **Evidence** means source exist
 | `version_unique`, `version_semver`, `version_tags`, `release_notes` | Immutable [v0.1.2](https://github.com/KofTwentyTwo/standards/releases/tag/v0.1.2), committed version and [changelog](../../CHANGELOG.md); failed unpublished tags are reserved | Evidence |
 | `release_notes_vulns` | [Release standard](../../standards/releases.md) requires security fix notes; no published vulnerability fix history to attest to yet | Review |
 | `vulnerability_report_process`, `vulnerability_report_private` | [SECURITY](../../SECURITY.md) links private GitHub reporting and supported versions | Evidence |
-| `vulnerability_report_response` | SECURITY defines targets; maintainer confirms monitored contact and actual response capability | Review |
+| `vulnerability_report_response` | Maintainer confirmed actual response compliance on 2026-10-10 in the public assessment; revalidate report history, not just SECURITY targets | Review |
 | `build`, `build_common_tools`, `build_floss_tools` | [Bundle builder](../../tools/Build-StandardsPackage.ps1) uses Git archives and PowerShell; prerequisites and release steps are documented | Evidence |
 | `test`, `test_invocation`, `test_policy`, `tests_are_added`, `tests_documented_added` | CONTRIBUTING requires behavioral regression tests and documents checker, package and fuzz commands | Evidence |
 | `test_continuous_integration` | [CI](../../.github/workflows/ci.yml) runs tests on PR/main, schedules and tag publication gates | Evidence |
-| `test_most` | Parser properties, helper self-tests and package tests exist; no measured whole-tool coverage. Owner must assess most functionality, not infer it from case counts | Review |
-| `warnings`, `warnings_fixed`, `warnings_strict` | Markdown/workflow gates reject findings. Broad PowerShell warning coverage is not established by Actions CodeQL; assess this gap separately | Review |
-| `know_secure_design`, `know_common_errors` | [Threat model](threat-model.md), [security policy](../../policies/security-program.md) and parser regressions support discussion; a primary human developer must personally attest to the required knowledge | Review |
+| `test_most` | Parser properties, helper self-tests and package tests exist; measured whole-tool coverage is not established | Suggested: Unmet |
+| `warnings`, `warnings_fixed` | Markdown/workflow gates reject findings; revalidate applicable PowerShell warning handling | Review |
+| `warnings_strict` | Maximal PowerShell warning/linter coverage across shipped tooling is not established by Actions CodeQL | Suggested: Unmet |
+| `know_secure_design`, `know_common_errors` | Primary maintainer personally attested on 2026-10-10; supporting [threat model](threat-model.md), [security policy](../../policies/security-program.md) and parser regressions remain review evidence | Review |
 | `crypto_published`, `crypto_call`, `crypto_floss`, `crypto_keylength`, `crypto_working`, `crypto_weaknesses` | No custom product cryptography. GitHub TLS, SSH signing and attestations are delegated mechanisms; assess whether delegation meets each criterion or permits N/A | Review |
 | `crypto_pfs` | No application server or product-controlled TLS configuration; document the hosted-service boundary if N/A is permitted | Proposed N/A |
 | `crypto_password_storage` | No application passwords, password database or credential-storage implementation | Proposed N/A |
@@ -53,16 +57,17 @@ IDs below omit the provider's `0.` level prefix. **Evidence** means source exist
 | `dynamic_analysis_unsafe` | Shipped tooling is managed PowerShell, not unsafe native-language implementation; owner validates applicability | Proposed N/A |
 | `dynamic_analysis_fixed` | Generated-input findings gained deterministic regressions; review all future campaign failures before assessment updates | Review |
 
-## Completing enrollment
+## Maintaining the assessment
 
-1. Retry normal GitHub login at <https://www.bestpractices.dev/en> after the provider
-   restriction clears; register the exact repository above. Do not bypass anti-spam.
-2. Review every proposed answer against the live criteria and actual evidence,
-   including human knowledge, unresolved findings, and observed response history.
-3. Put the actual project URL in [assurance.json](assurance.json) and add the
-   provider's linked badge to README. Record the resulting assessment level honestly.
-4. Close EX-0007 through a normal PR and set the next assessment review date.
-   Work toward passing by resolving genuine gaps; registration is not passing.
+1. Review the public answers against current criteria and repository evidence by the
+   next review date and before each MINOR or MAJOR release.
+2. Reconfirm human knowledge, unresolved findings and actual response history with
+   the maintainer; update answers when evidence or applicability changes.
+3. Keep the provider's live badge, project URL and this review record synchronized.
+   Downstream repositories need their own assessment and badge.
+4. Improve the unmet suggested criteria `test_most` and `warnings_strict`; passing
+   does not establish whole-tool coverage or maximal warning coverage. Track the
+   shared release smoke-test gap in [issue #22](https://github.com/KofTwentyTwo/standards/issues/22).
 
 Downstream repositories use the [assessment template](../../templates/repo/docs/security/best-practices.md)
 and their own evidence and project ID; EX-0007 does not apply to them.
