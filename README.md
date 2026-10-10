@@ -69,6 +69,7 @@ flowchart TB
 | Know the development process (branches, commits, review, releases) | [SDLC policy](policies/sdlc.md) |
 | Know the security program (access, secrets, vulnerabilities, incidents) | [Security program](policies/security-program.md) |
 | Use AI coding agents within the rules | [AI-assisted development](policies/ai-assisted-development.md) |
+| Configure how an agent session runs (instructions, autonomy, provenance) | [AI agent operations](standards/ai-agents.md) |
 | Write code in a given language | [Coding standard](standards/coding/README.md) and its language profiles |
 | Know what a repository must contain and how GitHub is configured | [Repository standard](standards/repository.md) |
 | Know which CI checks gate a merge and how pipelines are secured | [CI/CD standard](standards/ci-cd.md) |
