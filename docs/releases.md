@@ -116,6 +116,10 @@ same Git/archive tool versions. The builder refuses an existing output directory
 
 ## Failed releases
 
+The initial `v0.1.0` tag was reserved by a workflow-startup failure; no bundle was
+published for it. The first published bundle is `v0.1.1`. Keep the original tag
+unchanged; use a new version when a tagged workflow needs a source fix.
+
 Never replace published assets or move/reuse a version tag. Fix a published error
 with a new release. A failed upload or publication leaves a draft; inspect its run
 and assets, then remove **only the unpublished draft** before rerunning the tag's
