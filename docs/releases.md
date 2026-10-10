@@ -80,7 +80,9 @@ and Release Please actions are pinned and tracked by Dependabot. See the
    the checklist; reruns all repository CI gates; builds and attests the assets;
    and waits for the `release` environment approval. Publication creates a draft with
    all assets and notes, then publishes it. The release PR is marked
-   `autorelease: tagged` so the next version can be proposed.
+   `autorelease: tagged` so the next version can be proposed. Version proposals wait
+   while a merged release PR has `autorelease: pending`; a failed, permanently
+   retired version uses `autorelease: failed` instead.
 
 These bundles ship no compiled software, so the compiled-artifact SBOM requirement
 does not apply. The included workflows/configs retain their upstream pins; source
@@ -115,6 +117,10 @@ Use the original checklist URL with `-ChecklistUrl` to reproduce `.notes.md` and
 same Git/archive tool versions. The builder refuses an existing output directory.
 
 ## Failed releases
+
+The initial `v0.1.0` tag was reserved by a workflow-startup failure; no bundle was
+published for it. The first published bundle is `v0.1.1`. Keep the original tag
+unchanged; use a new version when a tagged workflow needs a source fix.
 
 Never replace published assets or move/reuse a version tag. Fix a published error
 with a new release. A failed upload or publication leaves a draft; inspect its run

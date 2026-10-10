@@ -51,11 +51,13 @@ jobs:
           }
           echo "pr=$pr" >> "$GITHUB_OUTPUT"
           # Preflight is approved before tagging; shipping checks follow publication.
-          checklist=''
+          annotation="$(git for-each-ref --format='%(contents)' "refs/tags/$TAG")"
+          checklist="$(printf '%s\n' "$annotation" | sed -n 's/^Release checklist: //p' | head -n 1)"
           if [[ "$version" == *.0 ]]; then
-            annotation="$(git for-each-ref --format='%(contents)' "refs/tags/$TAG")"
+            [[ -n "$checklist" ]]
+          fi
+          if [[ -n "$checklist" ]]; then
             prefix="https://github.com/$GH_REPO/issues/"
-            checklist="$(printf '%s\n' "$annotation" | grep -F 'Release checklist: ' | head -n 1 | sed 's/^Release checklist: //')"
             [[ "$checklist" == "$prefix"* ]]
             issue="${checklist#"$prefix"}"
             [[ "$issue" =~ ^[1-9][0-9]*$ ]]
@@ -70,6 +72,7 @@ jobs:
     uses: ./.github/workflows/ci.yml
     permissions:
       contents: read
+      pull-requests: read # required by ci.yml's nested PR caller even on tag events
       security-events: write
 
   build:
