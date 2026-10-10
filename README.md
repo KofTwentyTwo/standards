@@ -303,6 +303,13 @@ the shared release workflow ([release standard](standards/releases.md)).
 
 ## Staying current
 
+Download a versioned ZIP or tar.gz standards bundle from
+[GitHub Releases](https://github.com/KofTwentyTwo/standards/releases). Bundles preserve
+the repository layout, include checksums and provenance attestations, and become
+immutable on publication. See [bundle releases](docs/releases.md) for semantic version
+proposals, maintainer setup, publishing, verification, and local reproduction.
+The first bundle has not been published yet.
+
 - This repository is versioned with [Semantic Versioning](https://semver.org). A new
   **MUST** that existing repositories do not meet is a MAJOR release; read its release
   notes before updating.

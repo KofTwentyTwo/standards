@@ -4,6 +4,7 @@
 name: ci
 
 on:
+  workflow_call:
   pull_request:
   push:
     branches: [main]
@@ -92,7 +93,43 @@ jobs:
         shell: pwsh
         run: ./tools/Test-RepoConformance.ps1 -SelfTest
 
+      - name: Standards package tests
+        shell: pwsh
+        run: ./tools/Test-StandardsPackage.ps1
+
       # Static mode reads only the checkout: no API calls, no admin scope needed.
       - name: Static conformance of this repository
         shell: pwsh
         run: ./tools/Test-RepoConformance.ps1 -LocalPath . -StaticOnly
+
+  release-please:
+    name: release-please
+    needs: [security, codeql, docs, conformance]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.RELEASE_APP_CLIENT_ID != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    # EX-0006: a main-only bot key, never a repository secret.
+    environment: release-automation
+    concurrency:
+      group: standards-release-pr
+      cancel-in-progress: false
+    permissions: {}
+    steps:
+      # An App token lets the generated PR trigger CI; GITHUB_TOKEN does not.
+      - name: Release PR token
+        id: app
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Propose a semantic release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          token: ${{ steps.app.outputs.token }}
+          target-branch: main
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          skip-github-release: true

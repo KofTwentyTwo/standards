@@ -10,6 +10,7 @@ Open and closed exceptions to the KofTwentyTwo standards. The process is in
 | [EX-0003](#ex-0003) | Open | K22-DEP-02 (license allowlist) | gclo | Reviewed yearly, next on 2027-10-09 |
 | [EX-0004](#ex-0004) | Open | K22-CI-30, K22-REL-04 (shared release workflow) | gclo | When the shared reusable release workflow ships, at the latest 2027-04-09 |
 | [EX-0005](#ex-0005) | Open | K22-AI-10 (agents via PR only), K22-AI-11 (in part: unconfirmed pushes) | second-brain, nix, Praetor, Jellyfin | Reviewed yearly, next on 2027-10-10 |
+| [EX-0006](#ex-0006) | Open | K22-CI-16 (tag-only environment secrets) | standards | 2027-04-10; review 2027-01-10 |
 
 ## EX-0001
 
@@ -143,3 +144,28 @@ Open and closed exceptions to the KofTwentyTwo standards. The process is in
     requests per `K22-AI-10`.
 - **Expires:** reviewed yearly, next on 2027-10-10.
 - **Owner:** the maintainer.
+
+## EX-0006
+
+**Main-only release-version bot credential**
+
+- **Status:** Open; approved with the reviewed release-bundle implementation PR.
+- **Requirements:** `K22-CI-16` restricts remaining secrets to environments whose
+  deployment rules allow only protected `v*` tags.
+- **Scope:** `KofTwentyTwo/standards`, only `RELEASE_APP_PRIVATE_KEY` in the
+  `release-automation` environment for the `ci.yml` release-PR job on protected `main`.
+- **Reason:** Release Please needs a GitHub App token to create version PRs that
+  trigger CI without enabling PR creation by `GITHUB_TOKEN`. No native GitHub App
+  OIDC exchange is configured; the private key is therefore needed before a tag exists.
+- **Risk:** compromised version-PR automation could obtain the App key and exercise
+  the App's repository permissions.
+- **Compensating controls:** App installation limited to this repository; Contents and
+  Pull requests write, Administration read only; no ruleset bypass; main-only
+  environment deployment policy; job runs only after all main CI gates succeed;
+  SHA-pinned actions; short-lived scoped installation tokens revoked after each job;
+  all resulting PRs still require normal checks and maintainer review. The bot neither
+  creates release tags nor signs or publishes packages. Publication still uses the
+  protected tag-only `release` environment and GitHub's immutable-releases setting.
+- **Expires:** 2027-04-10, or earlier when version proposals use credential federation.
+- **Owner:** the maintainer.
+- **Review date:** 2027-01-10.
