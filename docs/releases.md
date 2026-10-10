@@ -46,7 +46,9 @@ version and notes before merging. A `breaking` label alone does not change the v
    `release` with a maintainer reviewer and deployment access for `v*` tags only.
    Store `RELEASE_APP_PRIVATE_KEY` separately in these **environment secrets**;
    never as a repository secret or committed file. Environments in the reusable
-   publisher resolve their own secrets; caller workflows do not pass the key.
+   publisher resolve their own secrets, but the caller must explicitly pass the
+   secret name and the reusable workflow must declare it. The named contract does
+   not expose the tag-only value to caller jobs or nested CI gates.
    Keep `protect-main` and `protect-release-tags` intact; the App does not create
    tags or bypass review. Allow the SHA-pinned Release Please action if repository
    action restrictions require an explicit allowlist entry.
@@ -119,8 +121,10 @@ same Git/archive tool versions. The builder refuses an existing output directory
 ## Failed releases
 
 The initial `v0.1.0` tag was reserved by a workflow-startup failure; no bundle was
-published for it. The first published bundle is `v0.1.1`. Keep the original tag
-unchanged; use a new version when a tagged workflow needs a source fix.
+published for it. The `v0.1.1` publisher then stopped before draft creation because
+the caller omitted the environment secret contract. Both tags remain reserved;
+`v0.1.2` is the planned first published bundle. Keep these tags unchanged; use a new
+version when a tagged workflow needs a source fix.
 
 Never replace published assets or move/reuse a version tag. Fix a published error
 with a new release. A failed upload or publication leaves a draft; inspect its run
