@@ -2,6 +2,10 @@ name: release-standards
 
 on:
   workflow_call:
+    secrets:
+      RELEASE_APP_PRIVATE_KEY:
+        description: App key resolved from the protected release environment.
+        required: true
 
 permissions: {}
 
