@@ -24,6 +24,8 @@ conformance version in its README once it passes the conformance checker.
 | --- | --- | --- | --- |
 | [standards](https://github.com/KofTwentyTwo/standards) | These policies, standards, configs, and reusable workflows | Product | Not yet: rulesets and CI being added |
 | [AppKit](https://github.com/KofTwentyTwo/AppKit) | Shared foundation packages for Windows desktop apps | Product | Adoption in progress |
+| [MarkdownViewr.Windows](https://github.com/KofTwentyTwo/MarkdownViewr.Windows) | Windows Markdown reader based on Darin Kelkhoff's macOS markdownViewr and AppKit | Product | Adoption in progress: release acceptance, signing and maintainer review pending |
+| [windows-app-template](https://github.com/KofTwentyTwo/windows-app-template) | Reusable AppKit Windows app starter with optional CLI and stable/dev release workflows | Product | Adoption in progress: shared defaults and release controls in review |
 | [gclo](https://github.com/KofTwentyTwo/gclo) | Clone and update every repository of a GitHub organization (Windows app and CLI) | Product | Adoption in progress: standards gates, governance files, and the Kingsrook layout are in review (gclo #62); settings and exceptions pending |
 
 ### Awaiting classification
