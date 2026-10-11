@@ -6,7 +6,7 @@ Open and closed exceptions to the KofTwentyTwo standards. The process is in
 | ID | Status | Requirements | Scope | Expires |
 | --- | --- | --- | --- | --- |
 | [EX-0001](#ex-0001) | Open | K22-REPO-20 (approval count), OSPS-QA-07.01 | All repositories | When a second maintainer joins; reviewed 2027-10-09 |
-| [EX-0002](#ex-0002) | Open | K22-REL-05 (Authenticode signing of Windows binaries) | Windows desktop apps (gclo, AppKit samples, future apps) | When the Azure Trusted Signing identity is validated, at the latest 2027-04-09 |
+| [EX-0002](#ex-0002) | Open (closed for gclo 2026-10-11) | K22-REL-05 (Authenticode signing of Windows binaries) | Windows desktop apps not yet on `sign: true` (AppKit samples, future apps) | When each app turns on `sign: true` in the shared release workflow, at the latest 2027-04-09 |
 | [EX-0003](#ex-0003) | Open | K22-DEP-02 (license allowlist) | gclo | Reviewed yearly, next on 2027-10-09 |
 | [EX-0004](#ex-0004) | Open | K22-CI-30, K22-REL-04 (shared release workflow) | gclo | When the shared reusable release workflow ships, at the latest 2027-04-09 |
 | [EX-0005](#ex-0005) | Open | K22-AI-10 (agents via PR only), K22-AI-11 (in part: unconfirmed pushes) | second-brain, nix, Praetor, Jellyfin | Reviewed yearly, next on 2027-10-10 |
@@ -61,6 +61,13 @@ Open and closed exceptions to the KofTwentyTwo standards. The process is in
   EX-0004); releases before that have neither.
 - **Expires:** when the signing identity is validated and the shared release workflow
   signs Windows binaries; at the latest 2027-04-09.
+- **Closed for gclo:** 2026-10-11. The signing identity (Azure Artifact Signing account
+  `kof22signing`, Public Trust profile, publisher "James Maes") is validated and the
+  shared workflow signs on `sign: true` (standards#28/#29): gclo v1.0.2-beta.3,
+  v1.1.0-beta.1 and v1.1.0 ship Setup.exe, Update.exe and every exe/dll
+  Authenticode-signed (SHA-256, RFC 3161), verified with `signtool verify /pa /all` by
+  gclo's `verify-signatures` job and by hand (289 files, 0 failures). The exception
+  stays open only for Windows apps that have not turned `sign: true` on yet.
 - **Owner:** the maintainer.
 
 ## EX-0003
