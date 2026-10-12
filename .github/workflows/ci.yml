@@ -131,9 +131,31 @@ jobs:
           Install-Module Pester -RequiredVersion 5.7.1 -Scope CurrentUser -Force
           Import-Module PSScriptAnalyzer -RequiredVersion 1.25.0
           Import-Module Pester -RequiredVersion 5.7.1
+          # Keep every configured rule; isolate concurrent command-metadata consumers.
+          # https://github.com/PowerShell/PSScriptAnalyzer/issues/1708
+          $settings = 'configs/shell/PSScriptAnalyzerSettings.psd1'
+          $casingFixture = @(Invoke-ScriptAnalyzer -ScriptDefinition "get-content -literalpath 'fixture.txt'" -Settings $settings -IncludeRule PSUseCorrectCasing)
+          if ('PSUseCorrectCasing' -notin $casingFixture.RuleName) { throw 'The casing pass did not detect incorrect casing.' }
+          $reservedFixture = @(Invoke-ScriptAnalyzer -ScriptDefinition 'function Get-Fixture? { [CmdletBinding()] param() }; Export-ModuleMember -Function Get-Fixture?' -Settings $settings -IncludeRule PSReservedCmdletChar)
+          if ('PSReservedCmdletChar' -notin $reservedFixture.RuleName) { throw 'The reserved-character pass did not detect the exported function.' }
+          $remainingFixture = @(Invoke-ScriptAnalyzer -ScriptDefinition "Write-Host 'fixture'" -Settings $settings -ExcludeRule PSUseCorrectCasing, PSReservedCmdletChar)
+          if ('PSAvoidUsingWriteHost' -notin $remainingFixture.RuleName) { throw 'The remaining-rule pass did not detect Write-Host.' }
           foreach ($path in @('tools/WindowsSigning.psm1', 'tools/WindowsSigning.Tests.ps1', 'tools/VelopackSigning.Tests.ps1'))
           {
-             $findings = @(Invoke-ScriptAnalyzer -Path $path -Settings configs/shell/PSScriptAnalyzerSettings.psd1)
+             Write-Output "Analyzing $path"
+             try
+             {
+                $findings = @(
+                   Invoke-ScriptAnalyzer -Path $path -Settings $settings -IncludeRule PSUseCorrectCasing
+                   Invoke-ScriptAnalyzer -Path $path -Settings $settings -IncludeRule PSReservedCmdletChar
+                   Invoke-ScriptAnalyzer -Path $path -Settings $settings -ExcludeRule PSUseCorrectCasing, PSReservedCmdletChar
+                )
+             }
+             catch
+             {
+                Write-Output $_.Exception.ToString()
+                throw
+             }
              if ($findings.Count -gt 0) { $findings | Format-Table; throw "Script analysis failed: $path" }
           }
           $configuration = New-PesterConfiguration
