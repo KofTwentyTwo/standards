@@ -71,6 +71,18 @@ trust boundaries change.
 
 ## Review log
 
+- **Prepared AppKit signing extension, 2026-10-10:** Explicit owned-file selection
+  excludes third-party binaries from re-signing, retains their hashes and requires
+  their presence in final archives. Catalog preparation parses owned/preserved
+  `.exe`/`.dll` headers before writes; already corrupt dependencies cannot pass
+  solely because hashes are unchanged. Final owned binaries and installers require
+  publisher, trust, SHA256 and timestamp checks before upload or publication. The
+  SignTool packaging wrapper preserves valid signatures and refuses invalid ones.
+  NuGet signs before packing and checks embedded DLL bytes. Existing protected
+  release-environment OIDC boundaries remain; real AppKit identity/profile access
+  and signatures are still unproved. The helper reference and consumer rollout
+  remain pending review/publication; this entry is not deployment evidence.
+
 - **2026-10-10, v1.0.0:** Reviewed changes since v0.1.2: mandatory applicable badge
   participation and parser fuzzing, completed passing self-assessment, professional
   release text, scoped frontend audit exception, and unsigned-file-only Windows

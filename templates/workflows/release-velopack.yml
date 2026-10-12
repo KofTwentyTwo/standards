@@ -8,11 +8,12 @@
 # One-time owner setup:
 #   - Environment `release` (Settings -> Environments) with a deployment rule that allows
 #     only tags matching v*.
-#   - Code signing (when exception EX-0002 closes): add the environment variables
-#     AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID, TRUSTED_SIGNING_ENDPOINT,
-#     TRUSTED_SIGNING_ACCOUNT, TRUSTED_SIGNING_PROFILE (a federated credential for this
-#     repository's `release` environment on the Azure app registration), then set
-#     `sign: true` below.
+#   - Code signing: verify the existing Artifact Signing profile, configure repository
+#     OIDC and its Certificate Profile Signer role, then add AZURE_CLIENT_ID,
+#     AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID, ARTIFACT_SIGNING_ENDPOINT,
+#     ARTIFACT_SIGNING_ACCOUNT, ARTIFACT_SIGNING_PROFILE and ARTIFACT_SIGNING_SUBJECT
+#     to the protected release environment. Enable sign and enumerate owned files.
+#     See architecture/windows-release-signing.md; an Active profile alone is not proof.
 #   - winget (optional, stable releases only): the package must already exist in
 #     microsoft/winget-pkgs. Submit it once by hand with
 #       wingetcreate new <Setup.exe URL of the first stable release>
@@ -51,7 +52,13 @@ jobs:
       test-projects: |
         {{TEST_PROJECT}}
       cli-project: "{{CLI_PROJECT}}" # remove for apps without a CLI
-      sign: false # exception EX-0002: true once the Azure Trusted Signing identity is validated
+      sign: false # enable only after CI authentication and real signed-artifact verification
+      # Required when sign is true; include all owned app/CLI binaries, not dependencies:
+      # signing-files: |
+      #   app/MyApp.exe
+      #   app/MyApp.dll
+      #   app/MyApp.Core.dll
+      #   cli/myapp.exe
 
   # winget lives here, not in the shared workflow, because its token belongs to this
   # repository's `release` environment. It runs only for stable releases, and only when
