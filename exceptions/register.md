@@ -13,6 +13,10 @@ Open and closed exceptions to the KofTwentyTwo standards. The process is in
 | [EX-0006](#ex-0006) | Open | K22-CI-16 (tag-only environment secrets) | standards | 2027-04-10; review 2027-01-10 |
 | [EX-0007](#ex-0007) | Closed | K22-REPO-12 (enrollment) | KofTwentyTwo/standards | Closed 2026-10-10 |
 | [EX-0008](#ex-0008) | Open | K22-CI-21 (HIGH dependency finding) | Website-Frontend, development-only braces 3.0.3 | 2026-11-10; review 2026-10-17 |
+| [EX-0009](#ex-0009) | Open | K22-REPO-20 (linear history), K22-REPO-22 (squash only) | Website-Backend, Website-Frontend, Munitor, cluster-gitops | Reviewed yearly, next on 2027-10-12 |
+| [EX-0010](#ex-0010) | Open | K22-CI-01, K22-CI-10 to K22-CI-24, K22-CI-30 (GitHub Actions gates and reusable workflows) | Website-Backend, Website-Frontend, Munitor | 2027-04-12; review 2027-01-12 |
+| [EX-0011](#ex-0011) | Open | K22-CODE-TS-01, K22-CODE-SH-02 (Kingsrook 3-space layout) | Website-Frontend (TypeScript), Munitor (shell) | 2027-04-12; review 2027-01-12 |
+| [EX-0012](#ex-0012) | Open | K22-CODE-TF-04 (state never committed), K22-CODE-TF-05 (no secrets in `.tfvars`) | Praetor | Reviewed yearly, next on 2027-10-12 |
 
 ## EX-0001
 
@@ -232,3 +236,110 @@ Open and closed exceptions to the KofTwentyTwo standards. The process is in
 - **Owner:** James Maes, repository maintainer.
 - **Review date:** 2026-10-17. Remove the consumer exception and close this entry once
   the affected dependency is replaced or patched.
+
+## EX-0009
+
+**GitFlow with merge commits for Munitor-released and GitOps repositories**
+
+- **Requirements:** `K22-REPO-20` (linear history on `main`) and `K22-REPO-22`
+  (squash-only merges).
+- **Scope:** `KofTwentyTwo/Website-Backend`, `KofTwentyTwo/Website-Frontend`,
+  `KofTwentyTwo/Munitor` (`develop` and `main`, `feature/*` and `hotfix/*` branches)
+  and `KofTwentyTwo/cluster-gitops` (`main`, merge commits).
+- **Reason:** these repositories run GitFlow with merge commits. In Website-Backend
+  and Website-Frontend, `feature/*` and `hotfix/*` branches (and `develop`
+  promotions) merge to `main`, which releases and deploys through Munitor, and a
+  `main` to `develop` back-merge follows. Munitor itself merges `feature/*` into
+  `develop`, `release/X.Y.Z` into `main`, back-merges `main` into `develop`, and a
+  `vX.Y.Z` tag publishes the orb. Squash
+  or rebase merges break the ancestry between `develop` and `main` that the pipeline
+  relies on. cluster-gitops keeps merge commits so each change set applied by ArgoCD
+  stays one reviewable unit next to the automated image-bump commits.
+- **Risk:** non-linear history is harder to bisect and to read, and a merge commit can
+  carry several commits that were never reviewed individually.
+- **Compensating controls:** every human change to the Website repositories and
+  Munitor reaches `main` through a pull request; repository rulesets require signed
+  commits and the CircleCI checks on `main` and `develop`. cluster-gitops (Internal
+  tier, no CI) requires signed commits and blocks deletion and force pushes on `main`;
+  the Munitor deploy step writes image bumps to it directly as GitHub-signed commits
+  (GraphQL `createCommitOnBranch`), with no bypass actor; release tags stay protected
+  (`K22-REPO-21`); merged branches are deleted.
+- **Expires:** reviewed yearly, next on 2027-10-12, or earlier if Munitor gains a
+  squash-compatible release mode.
+- **Owner:** the maintainer.
+
+## EX-0010
+
+**CircleCI instead of the GitHub Actions reusable workflows**
+
+- **Requirements:** `K22-CI-01` (required checks run by the reusable workflows),
+  `K22-CI-10` to `K22-CI-24` as written for GitHub Actions, and `K22-CI-30`
+  (releases built by the shared reusable release workflow).
+- **Scope:** `KofTwentyTwo/Website-Backend`, `KofTwentyTwo/Website-Frontend` and
+  `KofTwentyTwo/Munitor` (the CircleCI orb that builds, releases and deploys them).
+- **Reason:** these repositories build, publish container images and deploy to the
+  k8s-galaxy cluster through the Munitor CircleCI orb, which predates the reusable
+  GitHub Actions workflows and holds the deploy integration (image publishing,
+  cluster-gitops version bumps). Porting the pipeline is a separate project.
+- **Risk:** the gates are implemented per orb rather than by the audited reusable
+  workflows, so a gate can be missing or weaker than the standard (for example
+  CodeQL, zizmor, Scorecard and SLSA provenance have no CircleCI equivalent here).
+- **Compensating controls:** the CircleCI checks are required by the repository
+  rulesets (Website: `build-and-test`, `secrets-scan`, `sast-scan`; Munitor:
+  `orb-tools/lint`, `pack`, `review`, `test`); the orb runs the test suite, gitleaks and Trivy where configured;
+  GitHub-side controls still apply (secret scanning with push protection, Dependabot
+  alerts and security updates, code scanning default setup where available); orbs are
+  pinned to exact versions; signed commits are required.
+- **Expires:** 2027-04-12, or when the repositories move to the reusable workflows;
+  review 2027-01-12.
+- **Owner:** the maintainer.
+
+## EX-0011
+
+**Website-Frontend and Munitor keep 2-space formatting**
+
+- **Requirements:** `K22-CODE-TS-01` (Kingsrook layout through the KofTwentyTwo ESLint
+  configuration: 3-space indent, Allman braces) and `K22-CODE-SH-02` (3-space shell
+  indentation).
+- **Scope:** `KofTwentyTwo/Website-Frontend` TypeScript, JavaScript, CSS and JSON
+  sources; `KofTwentyTwo/Munitor` Bash scripts and templates.
+- **Reason:** the Next.js code base was written in the framework's default 2-space
+  layout and is formatted by Prettier 3 (with `prettier-plugin-tailwindcss`) plus
+  ESLint 9 with `eslint-config-next`, which the TypeScript profile does not use.
+  Munitor's 100+ orb scripts and templates use 2-space indentation. Reformatting
+  either is a large whitespace-only diff that triggers releases (a Website deploy or
+  a new orb version for every consumer) and obscures history.
+- **Risk:** inconsistent layout across KofTwentyTwo TypeScript code; no functional
+  risk.
+- **Compensating controls:** `.editorconfig` comes from the standard, with only the
+  indent size overridden for these file types and a comment citing this exception;
+  the existing lint, type and orb checks still gate CI.
+- **Expires:** 2027-04-12, or when the code base is reformatted and adopts
+  `configs/typescript/eslint.config.mjs` (Website-Frontend) and the orb scripts are
+  reformatted with shfmt (Munitor); review 2027-01-12.
+- **Owner:** the maintainer.
+
+## EX-0012
+
+**Praetor commits git-crypt-encrypted OpenTofu state and variable files**
+
+- **Requirements:** `K22-CODE-TF-04` (state is never committed; remote state with
+  locking and encryption) and `K22-CODE-TF-05` (no secrets in `.tfvars` files).
+- **Scope:** `KofTwentyTwo/Praetor` (Internal tier, private): the local-backend roots
+  under `terraform/` and `unifi/` (17 `*.tfstate*` files) and their 10 `*.tfvars`
+  files.
+- **Reason:** Praetor provisions the homelab that would host any remote state backend
+  (the cluster, the NAS and Infisical are themselves managed here), so a remote backend
+  creates a bootstrap dependency on the infrastructure it builds. Committed, encrypted
+  local state is the recovery path when that infrastructure is down.
+- **Risk:** state and variable files contain credentials; anyone holding the git-crypt
+  key or a decrypted clone can read them. Local state has no locking, so two
+  concurrent applies could corrupt it.
+- **Compensating controls:** `.gitattributes` encrypts every `*.tfstate*`, `*.tfvars*`,
+  kubeconfig, talosconfig and `*secret*` path with git-crypt (GPG key held by the
+  maintainer); `git-crypt status` reports no unencrypted secret files; the repository
+  is private; applies are human-gated by the maintainer in session (`EX-0005`), which
+  serializes them; secrets are moving into Infisical with `sensitive = true` outputs.
+- **Expires:** reviewed yearly, next on 2027-10-12, or when the roots move to an
+  encrypted remote backend.
+- **Owner:** the maintainer.
