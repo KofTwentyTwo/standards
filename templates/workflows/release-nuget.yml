@@ -35,6 +35,10 @@ jobs:
       coverage-packages: "{{COVERAGE_PACKAGES}}"
       test-projects: |
         {{TEST_PROJECT}}
+      # For Windows libraries, enable only after verified Azure OIDC configuration:
+      # sign: true
+      # signing-files: |
+      #   src/My.Library/bin/Release/net10.0/My.Library.dll
 
   publish:
     name: publish (nuget.org)

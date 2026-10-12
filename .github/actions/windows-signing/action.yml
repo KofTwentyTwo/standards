@@ -1,0 +1,70 @@
+name: Windows signing verification
+description: Prepare explicit owned-file catalogs and verify final Authenticode signatures and preserved binary bytes.
+inputs:
+  operation:
+    description: prepare, verify, or verify-distribution.
+    required: true
+  root:
+    description: Root directory for the files to sign.
+    default: .
+  signing-files:
+    description: Newline-separated required file names or relative path patterns. No blanket dependency signing.
+    default: ""
+  preserve-other-binaries:
+    description: Record and check binaries outside the signing catalog.
+    default: "false"
+  expected-subject:
+    description: Verified certificate subject read from the deployed Azure profile.
+    default: ""
+  manifest:
+    description: Manifest created by prepare; empty uses RUNNER_TEMP/k22-signing-manifest.json.
+    default: ""
+  directory:
+    description: Directory of final packaged assets to verify.
+    default: ""
+outputs:
+  catalog:
+    description: File catalog consumed by azure/artifact-signing-action.
+    value: ${{ steps.run.outputs.catalog }}
+  manifest:
+    description: Owned files and third-party preservation manifest.
+    value: ${{ steps.run.outputs.manifest }}
+runs:
+  using: composite
+  steps:
+    - id: run
+      shell: pwsh
+      env:
+        K22_SIGNING_OPERATION: ${{ inputs.operation }}
+        K22_SIGNING_ROOT: ${{ inputs.root }}
+        K22_SIGNING_FILES: ${{ inputs.signing-files }}
+        K22_SIGNING_PRESERVE: ${{ inputs.preserve-other-binaries }}
+        K22_SIGNING_SUBJECT: ${{ inputs.expected-subject }}
+        K22_SIGNING_MANIFEST: ${{ inputs.manifest }}
+        K22_SIGNING_DIRECTORY: ${{ inputs.directory }}
+      run: |
+        Set-StrictMode -Version Latest
+        $ErrorActionPreference = 'Stop'
+        Import-Module (Join-Path $env:GITHUB_ACTION_PATH '../../../tools/WindowsSigning.psm1') -Force
+        $manifest = $env:K22_SIGNING_MANIFEST
+        if (-not $manifest) { $manifest = Join-Path $env:RUNNER_TEMP 'k22-signing-manifest.json' }
+        $catalog = Join-Path $env:RUNNER_TEMP 'k22-signing-catalog.txt'
+        switch ($env:K22_SIGNING_OPERATION)
+        {
+           'prepare' {
+              $patterns = @($env:K22_SIGNING_FILES -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+              if ($patterns.Count -eq 0) { throw 'Explicit owned signing-files are required.' }
+              if ([string]::IsNullOrWhiteSpace($env:K22_SIGNING_SUBJECT)) { throw 'The verified publisher subject is required before selecting signing files.' }
+              New-WindowsSigningCatalog -Root $env:K22_SIGNING_ROOT -Patterns $patterns -CatalogPath $catalog -ManifestPath $manifest -ExpectedSubject $env:K22_SIGNING_SUBJECT -PreserveOtherBinaries:($env:K22_SIGNING_PRESERVE -eq 'true')
+           }
+           'verify' {
+              Assert-WindowsSigningManifest -ManifestPath $manifest -ExpectedSubject $env:K22_SIGNING_SUBJECT
+           }
+           'verify-distribution' {
+              Assert-WindowsSigningManifest -ManifestPath $manifest -ExpectedSubject $env:K22_SIGNING_SUBJECT
+              Assert-WindowsDistribution -Directory $env:K22_SIGNING_DIRECTORY -ManifestPath $manifest -ExpectedSubject $env:K22_SIGNING_SUBJECT
+           }
+           default { throw "Unsupported signing operation: $env:K22_SIGNING_OPERATION." }
+        }
+        "catalog=$catalog" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+        "manifest=$manifest" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
