@@ -14,6 +14,13 @@ BeforeAll `
    if($start -lt 0 -or $end -ge $lines.Count) { throw 'Cannot locate the actual Velopack signing wrapper.' }
    $script:Wrapper = Join-Path $TestDrive 'sign-one.ps1'
    [IO.File]::WriteAllLines($script:Wrapper, @($lines[($start + 1)..($end - 1)] | ForEach-Object { $_.Substring(10) }))
+   $dependencyStart = [Array]::IndexOf($lines, '      - name: Prepare pinned Artifact Signing CLI dependency')
+   if($dependencyStart -lt 0) { throw 'Cannot locate the actual signing dependency bootstrap.' }
+   $dependencyStart += 4
+   $dependencyEnd = $dependencyStart
+   while($dependencyEnd -lt $lines.Count -and $lines[$dependencyEnd].StartsWith('          ')) { $dependencyEnd++ }
+   $script:Bootstrap = Join-Path $TestDrive 'sign-dependency.ps1'
+   [IO.File]::WriteAllLines($script:Bootstrap, @($lines[$dependencyStart..($dependencyEnd - 1)] | ForEach-Object { $_.Substring(10) }))
    $script:OldTool = $env:K22_VPK_SIGN_TOOL
    $env:K22_VPK_SIGN_TOOL = 'Invoke-WrapperTool'
 
@@ -28,6 +35,69 @@ BeforeAll `
 
       $ToolCalls.Add($ToolArguments)
       $global:LASTEXITCODE = if($ToolArguments[0] -eq 'sign') { $SignExit } else { $VerifyExit }
+   }
+}
+
+Describe 'The actual Artifact Signing dependency bootstrap' `
+{
+   BeforeEach `
+   {
+      $script:InstallRoot = Join-Path $TestDrive ([guid]::NewGuid().ToString('N'))
+      $script:PackageDirectory = Join-Path $script:InstallRoot 'downloads'
+      [void][IO.Directory]::CreateDirectory($script:PackageDirectory)
+      $script:Destination = Join-Path $script:InstallRoot 'ArtifactSigning/sign/sign.0.9.1-beta.26227.3'
+      Mock Invoke-WebRequest `
+      {
+         $fixture = Join-Path (Split-Path -Parent $OutFile) 'fixture'
+         [void][IO.Directory]::CreateDirectory((Join-Path $fixture 'tools/net8.0/any'))
+         [IO.File]::WriteAllText((Join-Path $fixture 'tools/net8.0/any/sign.dll'), 'fixture')
+         [IO.Compression.ZipFile]::CreateFromDirectory($fixture, $OutFile)
+      }
+      Mock Get-FileHash { [pscustomobject]@{ Hash = '34FD0D4AEABDBC363A48883881865B4DD65E6C11BA916028082FA23F3E1B1BA1' } }
+      Mock dotnet { $global:LASTEXITCODE = 0 }
+   }
+
+   It 'stages the verified tool where the official action finds it' `
+   {
+      & $script:Bootstrap -InstallRoot $script:InstallRoot -PackageDirectory $script:PackageDirectory
+      Get-Content -LiteralPath (Join-Path $script:Destination 'tools/net8.0/any/sign.dll') | Should -Be 'fixture'
+      Should -Invoke dotnet -Exactly 1
+   }
+
+   It 'rejects a changed download before verification or extraction' `
+   {
+      Mock Get-FileHash { [pscustomobject]@{ Hash = 'bad' } }
+      { & $script:Bootstrap -InstallRoot $script:InstallRoot -PackageDirectory $script:PackageDirectory } | Should -Throw '*checksum mismatch*'
+      Test-Path -LiteralPath $script:Destination | Should -BeFalse
+      Should -Invoke dotnet -Exactly 0
+   }
+
+   It 'rejects an invalid NuGet signature before extraction' `
+   {
+      Mock dotnet { $global:LASTEXITCODE = 1 }
+      { & $script:Bootstrap -InstallRoot $script:InstallRoot -PackageDirectory $script:PackageDirectory } | Should -Throw '*signature verification failed*'
+      Test-Path -LiteralPath $script:Destination | Should -BeFalse
+   }
+
+   It 'preserves a preexisting dependency directory' `
+   {
+      [void][IO.Directory]::CreateDirectory($script:Destination)
+      $marker = Join-Path $script:Destination 'marker.txt'
+      [IO.File]::WriteAllText($marker, 'preserve')
+      { & $script:Bootstrap -InstallRoot $script:InstallRoot -PackageDirectory $script:PackageDirectory } | Should -Throw '*already exists*'
+      Get-Content -LiteralPath $marker | Should -Be 'preserve'
+      Should -Invoke Invoke-WebRequest -Exactly 0
+   }
+
+   It 'rejects a package without the expected executable' `
+   {
+      Mock Invoke-WebRequest `
+      {
+         $emptyFixture = Join-Path (Split-Path -Parent $OutFile) 'empty'
+         [void][IO.Directory]::CreateDirectory($emptyFixture)
+         [IO.Compression.ZipFile]::CreateFromDirectory($emptyFixture, $OutFile)
+      }
+      { & $script:Bootstrap -InstallRoot $script:InstallRoot -PackageDirectory $script:PackageDirectory } | Should -Throw '*missing its executable*'
    }
 }
 
