@@ -108,6 +108,10 @@ on:
         description: Newline-separated required owned file names or publish-relative patterns, including the optional CLI; required when sign is true.
         type: string
         default: ""
+      msi:
+        description: Generate a per-user MSI alongside Setup.exe and portable ZIP; requires the same signing and verification.
+        type: boolean
+        default: false
     outputs:
       version:
         description: The released version (tag without the leading v).
@@ -494,6 +498,8 @@ jobs:
 
       - name: Velopack pack
         shell: pwsh
+        env:
+          VPK_MSI: ${{ inputs.msi }}
         run: |
           $sign = @()
           if ($env:K22_SIGN -eq 'true')
@@ -505,7 +511,7 @@ jobs:
              $sign = @('--signTemplate', $command, '--signExclude', $exclude)
           }
           $env:VELOPACK_TEMP = Join-Path $env:RUNNER_TEMP 'k22-velopack'
-          vpk pack --runtime $env:K22_RUNTIME --packId $env:K22_APP_ID --packVersion $env:K22_VERSION --packDir publish/app --mainExe $env:K22_MAIN_EXE --channel $env:K22_CHANNEL --icon $env:K22_ICON --outputDir Releases @sign
+          vpk pack --runtime $env:K22_RUNTIME --packId $env:K22_APP_ID --packVersion $env:K22_VERSION --packDir publish/app --mainExe $env:K22_MAIN_EXE --channel $env:K22_CHANNEL --icon $env:K22_ICON --outputDir Releases --instLocation PerUser @sign
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       # Keeps only what this build produced, as `vpk upload` does: the files listed in
@@ -533,6 +539,108 @@ jobs:
           $setup = $names | Where-Object { $_ -like '*-Setup.exe' } | Select-Object -First 1
           Write-Output "Assets: $($names -join ', '); feed: $feedName; setup: $setup"
           "setup=$setup" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Extract required MSI payload
+        if: inputs.msi
+        id: msi
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installers = @(Get-ChildItem -LiteralPath release -Filter '*.msi' -File)
+          if ($installers.Count -ne 1) { throw 'Exactly one MSI installer is required.' }
+          $root = Join-Path $env:RUNNER_TEMP ('k22-msi-' + [guid]::NewGuid().ToString('N'))
+          "root=$root" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          $image = Join-Path $root 'image'
+          $assets = Join-Path $root 'assets'
+          New-Item -ItemType Directory -Path $image, $assets -Force | Out-Null
+          $start = [Diagnostics.ProcessStartInfo]::new('msiexec.exe')
+          $start.UseShellExecute = $false
+          $start.CreateNoWindow = $true
+          foreach ($argument in @('/a', $installers[0].FullName, '/qn', "TARGETDIR=$image", '/l*v', (Join-Path $root 'extract.log')))
+          {
+             $start.ArgumentList.Add($argument)
+          }
+          $process = [Diagnostics.Process]::Start($start)
+          try
+          {
+             if (-not $process.WaitForExit(180000)) { $process.Kill(); throw 'MSI extraction timed out.' }
+             if ($process.ExitCode -ne 0) { throw "MSI extraction failed: $($process.ExitCode)." }
+          }
+          finally { $process.Dispose() }
+          $manifests = @(Get-ChildItem -LiteralPath $image -Recurse -File -Filter sq.version)
+          if ($manifests.Count -ne 1 -or $manifests[0].Directory.Name -ne 'current') { throw 'Expected one installed MSI application payload.' }
+          $payload = $manifests[0].Directory.Parent.FullName
+          [IO.Compression.ZipFile]::CreateFromDirectory($payload, (Join-Path $assets 'msi-Portable.zip'))
+          "directory=$assets" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      # Reuse the existing archive verifier for MSI's administratively extracted
+      # payload: every owned/third-party byte and generated launcher is checked.
+      - name: Verify exact signed MSI payload
+        if: inputs.msi && inputs.sign
+        uses: KofTwentyTwo/standards/.github/actions/windows-signing@f896215ec96854b18883191759259fd9866ee9be # reviewed signing helpers on main
+        with:
+          operation: verify-distribution
+          directory: ${{ steps.msi.outputs.directory }}
+          manifest: ${{ steps.signing.outputs.manifest }}
+          expected-subject: ${{ vars.ARTIFACT_SIGNING_SUBJECT || vars.TRUSTED_SIGNING_SUBJECT }}
+
+      - name: Verify MSI installs, launches and uninstalls
+        if: inputs.msi
+        shell: pwsh
+        env:
+          MSI_ROOT: ${{ steps.msi.outputs.root }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $msi = @(Get-ChildItem -LiteralPath release -Filter '*.msi' -File)
+          if ($msi.Count -ne 1) { throw 'Exactly one MSI installer is required.' }
+          $installer = New-Object -ComObject WindowsInstaller.Installer
+          $database = $installer.OpenDatabase($msi[0].FullName, 0)
+          $view = $database.OpenView('SELECT `Value` FROM `Property` WHERE `Property` = ''ProductCode''')
+          $view.Execute()
+          $product = $view.Fetch().StringData(1)
+          if ($product -notmatch '^\{[0-9A-Fa-f-]{36}\}$') { throw 'Invalid MSI product identity.' }
+          $target = Join-Path $env:MSI_ROOT 'installed'
+          $application = $null
+          try
+          {
+             $install = Start-Process msiexec.exe -ArgumentList @('/i', ('"' + $msi[0].FullName + '"'), '/qn', ('VELOPACK_INSTALLDIR="' + $target + '"'), '/l*v', ('"' + (Join-Path $env:MSI_ROOT 'install.log') + '"')) -WindowStyle Hidden -PassThru
+             if (-not $install.WaitForExit(180000)) { $install.Kill(); throw 'MSI installation timed out.' }
+             if ($install.ExitCode -ne 0) { throw "MSI installation failed: $($install.ExitCode)." }
+             $executable = Join-Path $target "current/$env:K22_MAIN_EXE"
+             if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) { throw 'MSI did not install the application.' }
+             $application = Start-Process -FilePath $executable -PassThru
+             $deadline = [DateTime]::UtcNow.AddSeconds(30)
+             do
+             {
+                $application.Refresh()
+                if ($application.HasExited) { throw 'MSI-installed application exited before opening its window.' }
+                if ($application.MainWindowHandle -ne [IntPtr]::Zero) { break }
+                Start-Sleep -Milliseconds 200
+             } while ([DateTime]::UtcNow -lt $deadline)
+             if ($application.MainWindowHandle -eq [IntPtr]::Zero) { throw 'MSI-installed application did not open a window.' }
+             if (-not $application.CloseMainWindow() -or -not $application.WaitForExit(10000)) { $application.Kill(); throw 'MSI-installed application did not close normally.' }
+          }
+          finally
+          {
+             if ($null -ne $application -and -not $application.HasExited) { $application.Kill() }
+             $uninstall = Start-Process msiexec.exe -ArgumentList @('/x', $product, '/qn', '/l*v', ('"' + (Join-Path $env:MSI_ROOT 'uninstall.log') + '"')) -WindowStyle Hidden -PassThru
+             if (-not $uninstall.WaitForExit(180000)) { $uninstall.Kill(); throw 'MSI uninstall timed out.' }
+             if ($uninstall.ExitCode -notin 0, 1605) { throw "MSI uninstall failed: $($uninstall.ExitCode)." }
+          }
+          if (Test-Path -LiteralPath (Join-Path $target "current/$env:K22_MAIN_EXE")) { throw 'MSI uninstall left the application installed.' }
+          Write-Output "MSI $product installed, opened its window, closed and uninstalled successfully."
+
+      - name: Remove temporary MSI extraction
+        if: always() && inputs.msi
+        shell: pwsh
+        env:
+          MSI_ROOT: ${{ steps.msi.outputs.root }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:MSI_ROOT)) { exit 0 }
+          $root = [IO.Path]::GetFullPath($env:MSI_ROOT)
+          $temporaryRoot = [IO.Path]::TrimEndingDirectorySeparator([IO.Path]::GetFullPath($env:RUNNER_TEMP))
+          if ([IO.Path]::GetDirectoryName($root) -ne $temporaryRoot -or [IO.Path]::GetFileName($root) -notmatch '^k22-msi-[0-9a-f]{32}$') { throw 'Unexpected MSI scratch directory.' }
+          if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force }
 
       - name: Zip CLI
         if: inputs.cli-project != ''
@@ -647,6 +755,13 @@ jobs:
         with:
           subject-path: release/*-cli-*.zip
           sbom-path: sbom/${{ inputs.app-id }}-cli-${{ needs.build.outputs.version }}.cdx.json
+
+      - name: Attest MSI SBOM
+        if: inputs.msi
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        with:
+          subject-path: release/*.msi
+          sbom-path: sbom/${{ inputs.app-id }}-${{ needs.build.outputs.version }}.cdx.json
 
       - name: Upload SBOMs
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
