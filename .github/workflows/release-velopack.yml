@@ -373,27 +373,29 @@ jobs:
         if: inputs.sign
         shell: pwsh
         run: |
-          param(
-             [string]$PackageDirectory = $env:RUNNER_TEMP,
-             [string]$InstallRoot = $env:LOCALAPPDATA
-          )
-          $ErrorActionPreference = 'Stop'
-          $version = '0.9.1-beta.26227.3'
-          $package = Join-Path $PackageDirectory "sign.$version.nupkg"
-          $destination = Join-Path $InstallRoot "ArtifactSigning/sign/sign.$version"
-          if (Test-Path -LiteralPath $destination) { throw 'Artifact Signing CLI directory already exists; use a fresh release runner.' }
-          Invoke-WebRequest -Uri "https://api.nuget.org/v3-flatcontainer/sign/$version/sign.$version.nupkg" -OutFile $package
-          if ((Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash -ne '34FD0D4AEABDBC363A48883881865B4DD65E6C11BA916028082FA23F3E1B1BA1')
-          {
-             throw 'Artifact Signing CLI package checksum mismatch.'
-          }
-          dotnet nuget verify $package --all
-          if ($LASTEXITCODE -ne 0) { throw 'Artifact Signing CLI NuGet signature verification failed.' }
-          [IO.Compression.ZipFile]::ExtractToDirectory($package, $destination)
-          if (-not (Test-Path -LiteralPath (Join-Path $destination 'tools/net8.0/any/sign.dll') -PathType Leaf))
-          {
-             throw 'Artifact Signing CLI package is missing its executable.'
-          }
+          & {
+             param(
+                [string]$PackageDirectory = $env:RUNNER_TEMP,
+                [string]$InstallRoot = $env:LOCALAPPDATA
+             )
+             $ErrorActionPreference = 'Stop'
+             $version = '0.9.1-beta.26227.3'
+             $package = Join-Path $PackageDirectory "sign.$version.nupkg"
+             $destination = Join-Path $InstallRoot "ArtifactSigning/sign/sign.$version"
+             if (Test-Path -LiteralPath $destination) { throw 'Artifact Signing CLI directory already exists; use a fresh release runner.' }
+             Invoke-WebRequest -Uri "https://api.nuget.org/v3-flatcontainer/sign/$version/sign.$version.nupkg" -OutFile $package
+             if ((Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash -ne '34FD0D4AEABDBC363A48883881865B4DD65E6C11BA916028082FA23F3E1B1BA1')
+             {
+                throw 'Artifact Signing CLI package checksum mismatch.'
+             }
+             dotnet nuget verify $package --all
+             if ($LASTEXITCODE -ne 0) { throw 'Artifact Signing CLI NuGet signature verification failed.' }
+             [IO.Compression.ZipFile]::ExtractToDirectory($package, $destination)
+             if (-not (Test-Path -LiteralPath (Join-Path $destination 'tools/net8.0/any/sign.dll') -PathType Leaf))
+             {
+                throw 'Artifact Signing CLI package is missing its executable.'
+             }
+          } @args
 
       # Signs the app's own executables and DLLs (and the CLI) before packing, so the
       # binaries inside the installer, the portable zip, and the update packages are

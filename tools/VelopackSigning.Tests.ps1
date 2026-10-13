@@ -20,7 +20,8 @@ BeforeAll `
    $dependencyEnd = $dependencyStart
    while($dependencyEnd -lt $lines.Count -and $lines[$dependencyEnd].StartsWith('          ')) { $dependencyEnd++ }
    $script:Bootstrap = Join-Path $TestDrive 'sign-dependency.ps1'
-   [IO.File]::WriteAllLines($script:Bootstrap, @($lines[$dependencyStart..($dependencyEnd - 1)] | ForEach-Object { $_.Substring(10) }))
+   # GitHub's default pwsh shell prepends this statement to every inline run body.
+   [IO.File]::WriteAllLines($script:Bootstrap, @('$ErrorActionPreference = "stop"') + @($lines[$dependencyStart..($dependencyEnd - 1)] | ForEach-Object { $_.Substring(10) }))
    $script:OldTool = $env:K22_VPK_SIGN_TOOL
    $env:K22_VPK_SIGN_TOOL = 'Invoke-WrapperTool'
 
