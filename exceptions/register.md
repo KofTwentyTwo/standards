@@ -343,3 +343,32 @@ Open and closed exceptions to the KofTwentyTwo standards. The process is in
 - **Expires:** reviewed yearly, next on 2027-10-12, or when the roots move to an
   encrypted remote backend.
 - **Owner:** the maintainer.
+
+## EX-0013
+
+**Proposed: AppKit ESLint's transitive BSD views license**
+
+- **Status:** Proposed; not effective until this register change is reviewed and merged.
+- **Requirement:** `K22-DEP-02`, enforced by the reusable PR license allowlist.
+- **Scope:** `KofTwentyTwo/AppKit` repository tooling only, `pkg:npm/uri-js@4.4.1`
+  from ESLint's Ajv dependency. It is development-only and ships in no AppKit package.
+- **Reason:** hosted dependency review reports `BSD-2-Clause AND BSD-2-Clause-Views`,
+  while npm metadata says `BSD-2-Clause`. The installed 4.4.1 LICENSE matches the
+  [upstream text](https://github.com/garycourt/uri-js/blob/master/LICENSE), including
+  the views sentence. [SPDX](https://spdx.org/licenses/BSD-2-Clause-Views.html)
+  describes this as BSD-2-Clause with the added views-and-conclusions sentence.
+  Keeping ESLint preserves required checks of repository JavaScript and review code.
+- **Risk:** the default automated license policy cannot accept this expression;
+  a manual decision could miss a license obligation. Source copyright, conditions,
+  disclaimer and views text must be preserved when redistributing this tool.
+- **Compensating controls:** retain the locked dependency and full license; after
+  approval, exempt only that exact package version from license review. Every other
+  license, all development/runtime vulnerability checks, package signature verification
+  and SCA remain enforced. No shipped dependency gains an exemption.
+- **Expires:** 2027-04-10, or when this dependency is removed or upgraded, whichever
+  comes first. Reassess the actual replacement version before extending the scope.
+- **Owner:** KofTwentyTwo maintainer. **Review date:** 2027-01-10.
+- **Evidence:** [AppKit #26](https://github.com/KofTwentyTwo/AppKit/issues/26) and
+  [failed dependency gate](https://github.com/KofTwentyTwo/AppKit/actions/runs/38093180805).
+
+Do not activate a caller exemption while this entry remains proposed.
