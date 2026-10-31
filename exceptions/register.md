@@ -17,6 +17,7 @@ Open and closed exceptions to the KofTwentyTwo standards. The process is in
 | [EX-0010](#ex-0010) | Open | K22-CI-01, K22-CI-10 to K22-CI-24, K22-CI-30 (GitHub Actions gates and reusable workflows) | Website-Backend, Website-Frontend, Munitor | 2027-04-12; review 2027-01-12 |
 | [EX-0011](#ex-0011) | Open | K22-CODE-TS-01, K22-CODE-SH-02 (Kingsrook 3-space layout) | Website-Frontend (TypeScript), Munitor (shell) | 2027-04-12; review 2027-01-12 |
 | [EX-0012](#ex-0012) | Open | K22-CODE-TF-04 (state never committed), K22-CODE-TF-05 (no secrets in `.tfvars`) | Praetor | Reviewed yearly, next on 2027-10-12 |
+| [EX-0013](#ex-0013) | Open | K22-DEP-02 automated license classification | QRun-IO/qbit-printing, unmodified H2 2.4.240 only | 2027-04-30 or any H2 version/license change, whichever occurs first |
 
 ## EX-0001
 
@@ -343,3 +344,17 @@ Open and closed exceptions to the KofTwentyTwo standards. The process is in
 - **Expires:** reviewed yearly, next on 2027-10-12, or when the roots move to an
   encrypted remote backend.
 - **Owner:** the maintainer.
+
+## EX-0013
+
+**H2 2.4.240 license metadata classification in QQQ Printing**
+
+- **Requirements:** `K22-DEP-02` permits MPL-2.0 when used unmodified. This is an exception to the automated dependency-review classification for one already-permitted dependency, not permission to introduce an incompatible license or skip vulnerability review. The pinned `pr.yml` input requires this register entry for a package-specific license exception.
+- **Scope:** `QRun-IO/qbit-printing` only; Maven package `com.h2database:h2`, unmodified version **2.4.240**, runtime JAR SHA-256 `29b70e427cc1c40cdc376283adbb0cc62853073797bb5fe5761f81fe73d57ce0`. No other package, version, repository or modified H2 binary is covered.
+- **Reason:** GitHub dependency review reports `LicenseRef-scancode-unknown AND MPL-2.0`. The tagged upstream license expressly offers MPL-2.0 **or** EPL-1.0; this runtime uses the MPL-2.0 option. Published 2.3.232 and 2.4.240 POMs declare the same terms. Upgrading to 2.4.240 fixes confirmed close-time compaction data loss; reverting to the older driver is not an acceptable metadata workaround.
+- **Risk:** The scanner cannot accurately classify this artifact's license. A package-level exclusion could otherwise hide a later license change because the pinned action ignores PURL versions. The reviewed binary remains unmodified and retains its license/attribution; this record does not waive the applicable redistribution terms.
+- **Compensating controls:** The caller passes only `pkg:maven/com.h2database/h2` to `allow-dependencies-licenses`; every other package retains its existing license checks. The required `security / sca` Maven inventory guard rejects missing H2, any version other than 2.4.240, and multiple H2 versions, then verifies the complete selected runtime graph against scanner inventories. The runtime payload verifies every copied JAR's SHA-256 and contains exactly one H2 driver. The POM pins the reviewed version. `license-check: true`, `vulnerability-check: true`, low-or-higher dependency advisory review, Trivy severity gates, OSV malicious-package checks and all existing required checks remain enabled. H2 attribution and corresponding source access are documented in NOTICE and the repository license review. Any H2 upgrade requires renewed license review and guard/record updates before release.
+- **Expires:** 2027-04-30, or an H2 version/license change or correction of GitHub's metadata classification, whichever occurs first. Remove or renew through the normal standards PR process; do not broaden the exclusion silently.
+- **Owner:** the maintainer of `QRun-IO/qbit-printing`.
+- **Review date:** 2026-10-30.
+- **Evidence:** [H2 tagged license](https://github.com/h2database/h2database/blob/version-2.4.240/LICENSE.txt), [tagged license FAQ](https://github.com/h2database/h2database/blob/version-2.4.240/h2/src/docsrc/html/license.html), [published 2.4.240 POM](https://repo.maven.apache.org/maven2/com/h2database/h2/2.4.240/h2-2.4.240.pom), [published 2.3.232 POM](https://repo.maven.apache.org/maven2/com/h2database/h2/2.3.232/h2-2.3.232.pom), [failed dependency-review run](https://github.com/QRun-IO/qbit-printing/actions/runs/41160240342), [upstream compaction fix](https://github.com/h2database/h2database/pull/4249), [pinned workflow input](https://github.com/KofTwentyTwo/standards/blob/fdf5ed029603c938615a32b1beca3628b8787945/.github/workflows/pr.yml), [pinned version-ignoring matcher](https://github.com/actions/dependency-review-action/blob/a1d282b36b6f3519aa1f3fc636f609c47dddb294/src/purl.ts).
