@@ -337,7 +337,7 @@ jobs:
       - name: Prepare owned binary signing catalog
         if: inputs.sign
         id: signing
-        uses: KofTwentyTwo/standards/.github/actions/windows-signing@f896215ec96854b18883191759259fd9866ee9be # reviewed signing helpers on main
+        uses: KofTwentyTwo/standards/.github/actions/windows-signing@7d758b13449057e442d658a089a3c55aa3a6d171 # reviewed signing helpers on main
         with:
           operation: prepare
           root: publish
@@ -430,7 +430,7 @@ jobs:
 
       - name: Verify signed binaries and preserved dependencies
         if: inputs.sign
-        uses: KofTwentyTwo/standards/.github/actions/windows-signing@f896215ec96854b18883191759259fd9866ee9be # reviewed signing helpers on main
+        uses: KofTwentyTwo/standards/.github/actions/windows-signing@7d758b13449057e442d658a089a3c55aa3a6d171 # reviewed signing helpers on main
         with:
           operation: verify
           manifest: ${{ steps.signing.outputs.manifest }}
@@ -577,7 +577,7 @@ jobs:
       # payload: every owned/third-party byte and generated launcher is checked.
       - name: Verify exact signed MSI payload
         if: inputs.msi && inputs.sign
-        uses: KofTwentyTwo/standards/.github/actions/windows-signing@f896215ec96854b18883191759259fd9866ee9be # reviewed signing helpers on main
+        uses: KofTwentyTwo/standards/.github/actions/windows-signing@7d758b13449057e442d658a089a3c55aa3a6d171 # reviewed signing helpers on main
         with:
           operation: verify-distribution
           directory: ${{ steps.msi.outputs.directory }}
@@ -649,7 +649,7 @@ jobs:
 
       - name: Verify final installer, portable, full update and CLI assets
         if: inputs.sign
-        uses: KofTwentyTwo/standards/.github/actions/windows-signing@f896215ec96854b18883191759259fd9866ee9be # reviewed signing helpers on main
+        uses: KofTwentyTwo/standards/.github/actions/windows-signing@7d758b13449057e442d658a089a3c55aa3a6d171 # reviewed signing helpers on main
         with:
           operation: verify-distribution
           directory: release
