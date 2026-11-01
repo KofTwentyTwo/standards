@@ -18,6 +18,7 @@ Open and closed exceptions to the KofTwentyTwo standards. The process is in
 | [EX-0011](#ex-0011) | Open | K22-CODE-TS-01, K22-CODE-SH-02 (Kingsrook 3-space layout) | Website-Frontend (TypeScript), Munitor (shell) | 2027-04-12; review 2027-01-12 |
 | [EX-0012](#ex-0012) | Open | K22-CODE-TF-04 (state never committed), K22-CODE-TF-05 (no secrets in `.tfvars`) | Praetor | Reviewed yearly, next on 2027-10-12 |
 | [EX-0013](#ex-0013) | Open | K22-DEP-02 automated license classification | QRun-IO/qbit-printing, unmodified H2 2.4.240 only | 2027-04-30 or any H2 version/license change, whichever occurs first |
+| [EX-0014](#ex-0014) | Proposed, awaiting approval | K22-DEP-02 (Microsoft SDK terms and classification) | QRun-IO/qqq-print-agent, exact 15-package Windows SDK inventory below | 2027-04-30 or any reviewed version/license/scope change, whichever occurs first |
 
 ## EX-0001
 
@@ -358,3 +359,57 @@ Open and closed exceptions to the KofTwentyTwo standards. The process is in
 - **Owner:** the maintainer of `QRun-IO/qbit-printing`.
 - **Review date:** 2026-10-30.
 - **Evidence:** [H2 tagged license](https://github.com/h2database/h2database/blob/version-2.4.240/LICENSE.txt), [tagged license FAQ](https://github.com/h2database/h2database/blob/version-2.4.240/h2/src/docsrc/html/license.html), [published 2.4.240 POM](https://repo.maven.apache.org/maven2/com/h2database/h2/2.4.240/h2-2.4.240.pom), [published 2.3.232 POM](https://repo.maven.apache.org/maven2/com/h2database/h2/2.3.232/h2-2.3.232.pom), [failed dependency-review run](https://github.com/QRun-IO/qbit-printing/actions/runs/41160240342), [upstream compaction fix](https://github.com/h2database/h2database/pull/4249), [pinned workflow input](https://github.com/KofTwentyTwo/standards/blob/fdf5ed029603c938615a32b1beca3628b8787945/.github/workflows/pr.yml), [pinned version-ignoring matcher](https://github.com/actions/dependency-review-action/blob/a1d282b36b6f3519aa1f3fc636f609c47dddb294/src/purl.ts).
+
+## EX-0014
+
+**Exact Microsoft Windows SDK dependencies in QQQ Print Agent**
+
+- **Status:** Open upon merge of this record through the normal protected PR process. The maintainer accepted the complete 15-package scope and its Microsoft custom terms on 2026-11-01; the earlier two-package proposal is superseded.
+- **Requirements:** `K22-DEP-02`, for the Microsoft terms outside the standard license allowlist and their automated classification. This is not merely a metadata correction for an already-permitted SPDX license. No vulnerability, provenance, signing, attestation or branch-protection requirement is waived.
+- **Scope:** `QRun-IO/qqq-print-agent` only, unmodified Windows x64 use of the exact package/version/raw-NUPKG-SHA-256 tuples below, including the source-linked native test host. BuildTools and MSIX tooling remain build-only. The implicit SDK reference pack also supplies reviewed runtime projections. No other repository, package, version, modified binary, standalone SDK offering, optional execution provider/model or new AI feature is covered. The finite table is authoritative; there is no Microsoft package-family wildcard.
+- **Reason:** The existing WinUI application and its native regression host require this established SDK dependency set. Evaluated NuGet dependency submission now exposes the actual versions and non-SPDX Microsoft license terms. Removing declarations or returning to incomplete `>=0` metadata would hide dependencies rather than resolve the policy issue. AppKit's MIT dependencies retain ordinary license review and are not exempted.
+- **Risk:** Microsoft's usage, redistribution, data/privacy/export and third-party obligations remain applicable. A package-name license exception could hide later version/license changes because the pinned action ignores PURL version constraints. Approval does not relicense Microsoft code as MIT or certify that every redistribution obligation has been satisfied.
+- **Compensating controls:** The caller may list only the 15 exact package names below as `pkg:nuget/<name>` in `allow-dependencies-licenses`, after this record is approved. The required `Test-WindowsSdkInventory.ps1` guard checks exact versions, committed NuGet content hashes, raw package SHA-256, license/notice entry hashes and the corresponding explicit manifest. Raw signed-archive SHA-512 and NuGet lock `contentHash` are distinct and are checked separately. Fourteen packages are checked in app/test-host locks; `Microsoft.Windows.SDK.NET.Ref` is checked through evaluated SDK assets/download dependencies, not a fabricated lock entry. Preserve the five distinct license documents and applicable third-party notices. Verify BuildTools/MSIX nonlegal files are excluded and only expected runtime/projection output is distributed. Maintain explicit third-party terms and distributor/end-user protection obligations; generic MIT attribution alone is not sufficient. `license-check: true`, `vulnerability-check: true`, low-or-higher advisory failure, SCA/malware checks, locked restores, signed/DCO commits, required PR gates and release attestations remain enabled. Any reviewed version/license/payload-scope change requires renewed approval before the exclusion can be used.
+- **Expires:** 2027-04-30, or any reviewed package version/license/scope change, whichever occurs first. A classifier improvement alone does not make proprietary terms permissively licensed; remove or renew the record through the normal standards PR process.
+- **Owner:** the maintainer of `QRun-IO/qqq-print-agent`.
+- **Review date:** 2026-11-01.
+
+### Exact package scope
+
+| NuGet package | Version | Raw NUPKG SHA-256 |
+| --- | --- | --- |
+| [Microsoft.Windows.AI.MachineLearning](https://www.nuget.org/packages/Microsoft.Windows.AI.MachineLearning/2.1.74) | 2.1.74 | `691165FA3C07A04B752CBF4A07E93ED13A418E9DEA1EE89EB163D2225E2BA3AF` |
+| [Microsoft.Windows.SDK.BuildTools](https://www.nuget.org/packages/Microsoft.Windows.SDK.BuildTools/10.0.28000.2705) | 10.0.28000.2705 | `8BFDFB6CA2633F531CF80B5FA22512BA61A394D7988F0970DB83BAADC67929ED` |
+| [Microsoft.Windows.SDK.BuildTools.MSIX](https://www.nuget.org/packages/Microsoft.Windows.SDK.BuildTools.MSIX/1.7.251221100) | 1.7.251221100 | `E61C560805029F5AE15433BE52E153F3862B6FAAF725292638A9ECE592F7A060` |
+| [Microsoft.Windows.SDK.NET.Ref](https://www.nuget.org/packages/Microsoft.Windows.SDK.NET.Ref/10.0.19041.57) | 10.0.19041.57 | `90B18F2CF7D7A23F5B0BFE2B86D8DDA45881481F677CE36ECCAF6E9AB50B6B4B` |
+| [Microsoft.WindowsAppSDK](https://www.nuget.org/packages/Microsoft.WindowsAppSDK/2.5.1) | 2.5.1 | `2E26DE1253E2E2A288A75387523E2F8B402C05F117D42013DF9875887A70933A` |
+| [Microsoft.WindowsAppSDK.AI](https://www.nuget.org/packages/Microsoft.WindowsAppSDK.AI/2.5.5) | 2.5.5 | `108143AD35B20C8DF7A885995CE4258E7C2E6BA74C9B60D2D819CBC46980B6FB` |
+| [Microsoft.WindowsAppSDK.Base](https://www.nuget.org/packages/Microsoft.WindowsAppSDK.Base/2.0.4) | 2.0.4 | `E3E13478C4C80C59ED5F8F89542FE49A2985DAA484753E93A5858E90C2D46A4D` |
+| [Microsoft.WindowsAppSDK.DWrite](https://www.nuget.org/packages/Microsoft.WindowsAppSDK.DWrite/2.1.0) | 2.1.0 | `91746ABD6A780B84001F9C465507830D5A24C79912BC4AA0D35938C71C1C6B5F` |
+| [Microsoft.WindowsAppSDK.Foundation](https://www.nuget.org/packages/Microsoft.WindowsAppSDK.Foundation/2.3.12) | 2.3.12 | `CE04D01D68CB16B5DC85A5C9EFB8162DBA876BC2E5B766B5968979899D4EFA9E` |
+| [Microsoft.WindowsAppSDK.InteractiveExperiences](https://www.nuget.org/packages/Microsoft.WindowsAppSDK.InteractiveExperiences/2.1.9) | 2.1.9 | `F9159D73E3E46717F159606E43B4ACF8336AAFF5BDD4D395FE3A93FDB41437AC` |
+| [Microsoft.WindowsAppSDK.ML](https://www.nuget.org/packages/Microsoft.WindowsAppSDK.ML/2.1.94) | 2.1.94 | `549E92CD397B9D90EA9F08334DB6C79DFA78FC49B47BD3D26A53EB1DF2F21191` |
+| [Microsoft.WindowsAppSDK.Runtime](https://www.nuget.org/packages/Microsoft.WindowsAppSDK.Runtime/2.5.1) | 2.5.1 | `2FBD27012291BE50CAFED6942306964281D37167AF6A6AF3887E1163EC5CF063` |
+| [Microsoft.WindowsAppSDK.Search](https://www.nuget.org/packages/Microsoft.WindowsAppSDK.Search/2.5.5) | 2.5.5 | `B5876FE0091A6A14C34E46B5BC898621E80B5ED598F45574B90DEB84BF33F023` |
+| [Microsoft.WindowsAppSDK.Widgets](https://www.nuget.org/packages/Microsoft.WindowsAppSDK.Widgets/2.0.5) | 2.0.5 | `7F1B585EF8F012784D2CB91B86E809814CECCAB74183A5979EF45DB141779CB5` |
+| [Microsoft.WindowsAppSDK.WinUI](https://www.nuget.org/packages/Microsoft.WindowsAppSDK.WinUI/2.3.9) | 2.3.9 | `D36145BD6C0F46FC04E07FB4AF365D093FB42C39B625948D0EAD07A0B26FCE96` |
+
+The 14 ordinary packages have identical versions and NuGet content hashes in the production app and test host. `Microsoft.Windows.SDK.NET.Ref` is an implicit SDK download dependency; its reviewed `lib/net8.0/Microsoft.Windows.SDK.NET.dll` and `lib/net8.0/WinRT.Runtime.dll` are legitimate runtime projections, not build tools. Packaging verification found these bytes unchanged in the app, CLI and service; the package's `Microsoft.Windows.UI.Xaml.dll` was absent. The package manifest and payload guard retain these distinctions rather than excluding every reference-pack file indiscriminately.
+
+### License evidence and conditions
+
+| Exact document | Packages | License byte SHA-256 |
+| --- | --- | --- |
+| [Windows App SDK license.txt](https://www.nuget.org/packages/Microsoft.WindowsAppSDK/2.5.1/License) | WindowsAppSDK, AI, Base, DWrite, Foundation, InteractiveExperiences, Runtime, Search, Widgets, WinUI | `5B11E6347756E40FE0274BC08C97F89201B94F0D50181A09A00F1F4740840501` |
+| [Windows App SDK and Windows ML license.txt](https://www.nuget.org/packages/Microsoft.WindowsAppSDK.ML/2.1.94/License) | WindowsAppSDK.ML 2.1.94 | `656AAB74C15AA9F9964BCDCC993EB2755CBDB4822D5E0E3BC61D2E281897F758` |
+| [Windows ML Runtime license.txt](https://www.nuget.org/packages/Microsoft.Windows.AI.MachineLearning/2.1.74/License) | Windows.AI.MachineLearning 2.1.74 | `66395F8CB219087FAE2BD025010BD9076B736C14F03B48F20295471C0C376814` |
+| [Packaged SDK sdk_license.txt](https://www.nuget.org/packages/Microsoft.Windows.SDK.BuildTools.MSIX/1.7.251221100/License) | SDK.BuildTools.MSIX 1.7.251221100 | `A7A5C7E7FF998558983D6ACA2702117C328AEB0C6404D298CB275F5623C6FD13` |
+| [Official SDK license RTF](https://download.microsoft.com/download/0/F/F/0FF2B061-47DD-4F55-89B6-FD1D8C44F14D/sdk_license.rtf) | SDK.BuildTools and SDK.NET.Ref, whose nuspecs declare [WinSDKLicenseURL](https://aka.ms/WinSDKLicenseURL) | `DD07EB178E00C6BBA4148457FC00FF77CD4887EB521D504186FE59C9EC8BBE62` |
+
+The 13 file-declared licenses were read from the exact package archives and their byte hashes checked. The two URL declarations resolved on 2026-10-31 to the official RTF above, labeled Windows 10 SDK / `WIN10SDK.RTM.AUG_2018_en-US`; that is the document supplied by these packages, not a guessed newer license. No full vendor-license copies are placed in this standards repository.
+
+App SDK section 1 permits Windows development/testing; section 3 permits distribution of files placed with the application by the SDK, including self-contained deployment. Its requirements include significant application functionality, protective distributor/end-user terms, the stated indemnity obligations and unmodified-code exception, notices and restrictions on endorsement/standalone offerings. Both ML documents additionally retain their section 1(d) third-party-material/execution-provider terms. SDK sections 1(a)/1(c) cover development and build-server use; section 2 separately restricts redistributable/setup/utility code. These obligations and applicable third-party notices remain in force. The maintainer must fulfill the applicable redistribution/end-user protection requirements; this record is not a legal opinion or a waiver of vendor terms.
+
+The paired guard passed 25 rejection tests and checked the actual package cache, 11 locks and 11 evaluated assets. An unexecuted local MSI (`F08FF820CB4F7EA3877554E27208441942C6AA4D8749AD5A0D852C21A14D814C`) was built and statically extracted: all 13 legal/manifest paths matched expected bytes, the two runtime projections matched their package bytes, and BuildTools/MSIX nonlegal payloads and other reference-pack bytes were excluded. This is technical packaging evidence, not a certification that every redistribution obligation is fulfilled or authorization to install/publish that local MSI.
+
+Additional evidence: [resolved dependency-review failure](https://github.com/QRun-IO/qqq-print-agent/actions/runs/41259093183), [application change under review](https://github.com/QRun-IO/qqq-print-agent/pull/10), [pinned reusable workflow](https://github.com/KofTwentyTwo/standards/blob/fdf5ed029603c938615a32b1beca3628b8787945/.github/workflows/pr.yml), [version-ignoring package matcher](https://github.com/actions/dependency-review-action/blob/a1d282b36b6f3519aa1f3fc636f609c47dddb294/src/purl.ts). Publication and approval links must be added only when they exist.
