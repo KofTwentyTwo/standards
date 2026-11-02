@@ -199,7 +199,7 @@ jobs:
       - name: Prepare owned binary signing catalog
         if: inputs.sign
         id: signing
-        uses: KofTwentyTwo/standards/.github/actions/windows-signing@f896215ec96854b18883191759259fd9866ee9be # reviewed signing helpers on main
+        uses: KofTwentyTwo/standards/.github/actions/windows-signing@70b555bd5658273090769991bfc4c9b6681dde18 # reviewed signing helpers on main
         with:
           operation: prepare
           signing-files: ${{ inputs.signing-files }}
@@ -255,7 +255,7 @@ jobs:
 
       - name: Verify signed binaries
         if: inputs.sign
-        uses: KofTwentyTwo/standards/.github/actions/windows-signing@f896215ec96854b18883191759259fd9866ee9be # reviewed signing helpers on main
+        uses: KofTwentyTwo/standards/.github/actions/windows-signing@70b555bd5658273090769991bfc4c9b6681dde18 # reviewed signing helpers on main
         with:
           operation: verify
           manifest: ${{ steps.signing.outputs.manifest }}
@@ -269,7 +269,7 @@ jobs:
 
       - name: Verify the exact binaries shipped in NuGet packages
         if: inputs.sign
-        uses: KofTwentyTwo/standards/.github/actions/windows-signing@f896215ec96854b18883191759259fd9866ee9be # reviewed signing helpers on main
+        uses: KofTwentyTwo/standards/.github/actions/windows-signing@70b555bd5658273090769991bfc4c9b6681dde18 # reviewed signing helpers on main
         with:
           operation: verify-distribution
           directory: artifacts/nuget
