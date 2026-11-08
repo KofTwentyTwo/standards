@@ -1,0 +1,31 @@
+# Gitea CI for the standards repository. The .github workflows are the reusable
+# GitHub gates this repository publishes; Gitea does not run them.
+name: build
+on:
+  push:
+jobs:
+  docs:
+    uses: self:KofTwentyTwo/ci-workflows/.gitea/workflows/lint.yaml@small-workflows
+    with:
+      markdownlint: '**/*.md'
+      yamllint: |
+        **/*.yml
+        **/*.yaml
+      # Internal links and anchors between documents (offline: deterministic).
+      commands: |
+        LYCHEE_VERSION=0.24.2
+        LYCHEE_SHA256=1f4e0ef7f6554a6ed33dd7ac144fb2e1bbed98598e7af973042fc5cd43951c9a
+        archive=lychee-x86_64-unknown-linux-gnu.tar.gz
+        mkdir -p /tmp/lychee
+        curl -fsSLo "/tmp/lychee/$archive" "https://github.com/lycheeverse/lychee/releases/download/lychee-v$LYCHEE_VERSION/$archive"
+        (cd /tmp/lychee && echo "$LYCHEE_SHA256  $archive" | sha256sum --check --strict && tar -xzf "$archive")
+        /tmp/lychee/lychee-x86_64-unknown-linux-gnu/lychee --offline --include-fragments --no-progress './**/*.md'
+  conformance:
+    uses: self:KofTwentyTwo/ci-workflows/.gitea/workflows/windows.yaml@v1
+    with:
+      commands: |
+        pwsh -NoProfile -File ./tools/Test-RepoConformance.ps1 -SelfTest
+        pwsh -NoProfile -File ./tools/Test-RepoConformance.Fuzz.ps1 -Seed 22023 -Iterations 1000
+        pwsh -NoProfile -File ./tools/Test-RepoConformance.Fuzz.ps1 -Seed 99173 -Iterations 1000
+        pwsh -NoProfile -File ./tools/Test-StandardsPackage.ps1
+        pwsh -NoProfile -File ./tools/Test-RepoConformance.ps1 -LocalPath . -StaticOnly
