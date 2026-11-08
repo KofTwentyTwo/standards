@@ -5,7 +5,7 @@ on:
   push:
 jobs:
   docs:
-    uses: self:KofTwentyTwo/ci-workflows/.gitea/workflows/lint.yaml@main
+    uses: self:KofTwentyTwo/ci-workflows/.gitea/workflows/lint.yaml@v1
     with:
       markdownlint: '**/*.md'
       yamllint: |
