@@ -1,0 +1,6 @@
+# yamllint configuration for the standards repository: every default rule except
+# line length, which K22-CODE-08 leaves unlimited (pinned action SHAs and URLs
+# run long).
+extends: default
+rules:
+  line-length: disable
