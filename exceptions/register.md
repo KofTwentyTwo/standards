@@ -20,7 +20,7 @@ Open and closed exceptions to the KofTwentyTwo standards. The process is in
 | [EX-0013](#ex-0013) | Open | K22-DEP-02 automated license classification | QRun-IO/qbit-printing, unmodified H2 2.4.240 only | 2027-04-30 or any H2 version/license change, whichever occurs first |
 | [EX-0014](#ex-0014) | Proposed, awaiting approval | K22-DEP-02 (Microsoft SDK terms and classification) | QRun-IO/qqq-print-agent, exact 15-package Windows SDK inventory below | 2027-04-30 or any reviewed version/license/scope change, whichever occurs first |
 | [EX-0015](#ex-0015) | Proposed, awaiting approval | K22-DEP-02 (build-tool license classification) | QRun-IO/qqq-print-protocol and QRun-IO/qqq-print-agent, development-only `uri-js` 4.4.1 only | 2027-04-30 or any `uri-js` version/license/scope change, whichever occurs first |
-| [EX-0016](#ex-0016) | Proposed, awaiting approval | K22-TEST-10 (100% line coverage of UI-free application logic) | QRun-IO/qqq-print-agent, the `Qqq.PrintAgent.Windows` assembly only | 2027-05-10; review 2027-02-10 |
+| [EX-0016](#ex-0016) | Open | K22-TEST-10 (100% line coverage of UI-free application logic) | QRun-IO/qqq-print-agent, the `Qqq.PrintAgent.Windows` assembly only | 2027-05-10; review 2027-02-10 |
 
 ## EX-0001
 
@@ -436,7 +436,7 @@ Evidence: failed `pr / dependency-review` runs on [qqq-print-protocol#16](https:
 
 **90% line coverage for the print agent's Windows layer**
 
-- **Status:** Proposed, awaiting the maintainer's approval. The owner chose this target on 2026-11-10 while planning version 2.0 of the print agent; this record is what makes the choice visible.
+- **Status:** Open upon merge of this record. The maintainer chose this target on 2026-11-10 while planning version 2.0 of the print agent and approved this record the same day.
 - **Requirements:** `K22-TEST-10` requires 100% line coverage, enforced per assembly, for the UI-free core logic of applications. The 80% bar for lines changed by a pull request is not part of this exception.
 - **Scope:** `QRun-IO/qqq-print-agent`, the `Qqq.PrintAgent.Windows` assembly only, gated at 90% instead of 100%. The same repository's `Qqq.PrintAgent.Core`, its view-model assembly and its command-line assembly are held to 100% and are not covered. No other repository or assembly is covered.
 - **Reason:** That assembly is the operating-system adapter layer of a print service: the Windows spooler, GDI and PDF rendering, DEVMODE media negotiation, DPAPI, service control, Windows Installer staging and named-pipe peer identity. A baseline on 2026-11-10 measured it at 69% (2,618 to 2,623 of 3,799 lines across two runs of one commit), with the uncovered lines concentrated in the files that make native calls. `K22-CODE-CS-11` lets a thin adapter over a native call be excluded with a written reason, and 2.0 does that; but in several places decisions are interleaved with native calls (format decisions inside a printer enumeration loop, fit geometry between GDI calls), and separating every one of them is more restructuring than 2.0 can carry alongside its other work. The alternative to this record would be excluding code that still holds decisions, which hides the gap instead of stating it.
