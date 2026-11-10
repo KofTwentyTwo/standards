@@ -20,6 +20,7 @@ Open and closed exceptions to the KofTwentyTwo standards. The process is in
 | [EX-0013](#ex-0013) | Open | K22-DEP-02 automated license classification | QRun-IO/qbit-printing, unmodified H2 2.4.240 only | 2027-04-30 or any H2 version/license change, whichever occurs first |
 | [EX-0014](#ex-0014) | Proposed, awaiting approval | K22-DEP-02 (Microsoft SDK terms and classification) | QRun-IO/qqq-print-agent, exact 15-package Windows SDK inventory below | 2027-04-30 or any reviewed version/license/scope change, whichever occurs first |
 | [EX-0015](#ex-0015) | Proposed, awaiting approval | K22-DEP-02 (build-tool license classification) | QRun-IO/qqq-print-protocol and QRun-IO/qqq-print-agent, development-only `uri-js` 4.4.1 only | 2027-04-30 or any `uri-js` version/license/scope change, whichever occurs first |
+| [EX-0016](#ex-0016) | Proposed, awaiting approval | K22-TEST-10 (100% line coverage of UI-free application logic) | QRun-IO/qqq-print-agent, the `Qqq.PrintAgent.Windows` assembly only | 2027-05-10; review 2027-02-10 |
 
 ## EX-0001
 
@@ -430,3 +431,18 @@ Additional evidence: [resolved dependency-review failure](https://github.com/QRu
 - **Review date:** 2027-01-31.
 
 Evidence: failed `pr / dependency-review` runs on [qqq-print-protocol#16](https://github.com/QRun-IO/qqq-print-protocol/pull/16) and [qqq-print-agent#18](https://github.com/QRun-IO/qqq-print-agent/pull/18) (only this license finding remained), [SPDX BSD-2-Clause-Views](https://spdx.org/licenses/BSD-2-Clause-Views.html), [pinned reusable workflow](https://github.com/KofTwentyTwo/standards/blob/fdf5ed029603c938615a32b1beca3628b8787945/.github/workflows/pr.yml), [version-ignoring package matcher](https://github.com/actions/dependency-review-action/blob/a1d282b36b6f3519aa1f3fc636f609c47dddb294/src/purl.ts).
+
+## EX-0016
+
+**90% line coverage for the print agent's Windows layer**
+
+- **Status:** Proposed, awaiting the maintainer's approval. The owner chose this target on 2026-11-10 while planning version 2.0 of the print agent; this record is what makes the choice visible.
+- **Requirements:** `K22-TEST-10` requires 100% line coverage, enforced per assembly, for the UI-free core logic of applications. The 80% bar for lines changed by a pull request is not part of this exception.
+- **Scope:** `QRun-IO/qqq-print-agent`, the `Qqq.PrintAgent.Windows` assembly only, gated at 90% instead of 100%. The same repository's `Qqq.PrintAgent.Core`, its view-model assembly and its command-line assembly are held to 100% and are not covered. No other repository or assembly is covered.
+- **Reason:** That assembly is the operating-system adapter layer of a print service: the Windows spooler, GDI and PDF rendering, DEVMODE media negotiation, DPAPI, service control, Windows Installer staging and named-pipe peer identity. A baseline on 2026-11-10 measured it at 69% (2,618 to 2,623 of 3,799 lines across two runs of one commit), with the uncovered lines concentrated in the files that make native calls. `K22-CODE-CS-11` lets a thin adapter over a native call be excluded with a written reason, and 2.0 does that; but in several places decisions are interleaved with native calls (format decisions inside a printer enumeration loop, fit geometry between GDI calls), and separating every one of them is more restructuring than 2.0 can carry alongside its other work. The alternative to this record would be excluding code that still holds decisions, which hides the gap instead of stating it.
+- **Risk:** Up to a tenth of the measured lines in the OS layer of a service that runs as LocalSystem can ship without any automated test executing them. A regression there would be found only by hardware qualification or in the field.
+- **Compensating controls:** The repository's verification fails when the assembly's merged line coverage is below its recorded minimum, the minimum only moves up, and an assembly that is measured but has no recorded minimum fails. Every `[ExcludeFromCodeCoverage]` carries a justification and is reviewed. The decision that must not regress, never reprinting a job whose submission outcome is unknown, lives in `Qqq.PrintAgent.Core` at 100%. Native rendering and spooling run in a separate child process with a deadline. Physical output is qualified on real printers and recorded before a release. On a shortfall the gate lists the uncovered lines by file, so the remaining gap is always known.
+- **Expires:** 2027-05-10, or the print agent's next major release, whichever comes first. Renewal needs the then-current measured figure and the list of files still below 100%.
+- **Owner:** the maintainer of `QRun-IO/qqq-print-agent`.
+- **Review date:** 2027-02-10.
+- **Evidence:** the decision record [`docs/adr/0003-version-2.md`](https://git.kof22.com/QRun-IO/qqq-print-agent/src/branch/release/2.0/docs/adr/0003-version-2.md) and the gate, `build/Verify.ps1` with `build/minimum-coverage.json`, on that repository's `release/2.0` branch.
